@@ -174,40 +174,12 @@ static httpd_handle_t server = NULL;
 //     .user_ctx  = NULL
 // };
 
-esp_err_t index_get_handler(httpd_req_t *req)
-{
-    // Open renamed file for reading
-    ESP_LOGI(TAG, "Reading file");
-    
-    FILE * f = fopen("/spiffs/index.htm", "r");
-    if (f == NULL) {
-        ESP_LOGE(TAG, "Failed to open file for reading");
-        return ESP_OK;
-    }
-    char line[64];
-    fgets(line, sizeof(line), f);
-    fclose(f);
-    // strip newline
-    char* pos = strchr(line, '\n');
-    if (pos) {
-        *pos = '\0';
-    }
-    httpd_resp_send(req, line, strlen(line));
-    return ESP_OK;
-}
-
-httpd_uri_t index_route = {
-    .uri       = "/",
-    .method    = HTTP_GET,
-    .handler   = index_get_handler,
-};
-
 esp_err_t file_get_handler(httpd_req_t *req)
 {
     ESP_LOGI(TAG, req->uri);
     char filename[32];
-    strcpy(filename, "/spiffs/");
-    strcat(filename, strcmp(req->uri, "/") == 0 ? "index.html" : req->uri);
+    strcpy(filename, "/spiffs");
+    strcat(filename, strcmp(req->uri, "/") == 0 ? "/portal_index.html" : req->uri);
     FILE * f = fopen(filename, "r");
     if (f == NULL) {
         ESP_LOGE(TAG, "Failed to open file %s for reading", filename);
@@ -227,15 +199,24 @@ void register_file_urls(httpd_handle_t server)
 {
     DIR *dir_handle = opendir("/spiffs");
     struct dirent *dir;
+    char * prefix = malloc(8);
 
     if(dir_handle != NULL) {
         while((dir = readdir(dir_handle)) != NULL) {
+            
             if(strcmp(dir->d_name, ".") == 0 || strcmp(dir->d_name, "..") == 0) {
                 continue;
             }
+            strncpy(prefix, dir->d_name, 7);
+            prefix[7] = '\0';
+            ESP_LOGI(TAG, "Prefixes %s %s", prefix, dir->d_name);
+            if(strcmp(prefix, "portal_") != 0) {
+                continue;
+            }
+
             char * uri = malloc(strlen(dir->d_name) + 2);
             strcpy(uri, "/");
-            if(strcmp("index.html", dir->d_name) != 0) {
+            if(strcmp("portal_index.html", dir->d_name) != 0) {
                 strcat(uri, dir->d_name);
             } 
             ESP_LOGI(TAG, "Registering URI handler for %s with %s", uri, dir->d_name);
@@ -244,12 +225,10 @@ void register_file_urls(httpd_handle_t server)
             route->method = HTTP_GET;
             route->handler = file_get_handler;
             route->user_ctx = NULL;            
-            esp_err_t response = httpd_register_uri_handler(server, route);
-            if(response != ESP_OK) {
-                ESP_LOGE(TAG, "Failed to register URI handler with error %s", esp_err_to_name(response));
-            }
+            httpd_register_uri_handler(server, route);
         }
     }
+    free(prefix);
 }
 
 httpd_handle_t start_webserver(void)
@@ -260,11 +239,8 @@ httpd_handle_t start_webserver(void)
     // Start the httpd server
     ESP_LOGI(TAG, "Starting server on port: '%d'", config.server_port);
     if (httpd_start(&server, &config) == ESP_OK) {
-        // Set URI handlers
         ESP_LOGI(TAG, "Registering URI handlers");
-        //httpd_register_uri_handler(server, &index_route);
         register_file_urls(server);
-        // httpd_register_uri_handler(server, &echo);
         // httpd_register_uri_handler(server, &ctrl);
         return server;
     }
