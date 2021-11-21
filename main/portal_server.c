@@ -1,6 +1,8 @@
 #include <sys/param.h>
 #include <esp_http_server.h>
-#include "ui_server.h"
+#include <dirent.h>
+
+#include "portal_server.h"
 #include "esp_log.h"
 #include "esp_event.h"
 #include "esp_netif.h"
@@ -174,40 +176,6 @@ static httpd_handle_t server = NULL;
 
 esp_err_t index_get_handler(httpd_req_t *req)
 {
-        ESP_LOGI(TAG, "Initializing SPIFFS");
-    
-    esp_vfs_spiffs_conf_t conf = {
-      .base_path = "/spiffs",
-      .partition_label = NULL,
-      .max_files = 5,
-      .format_if_mount_failed = false
-    };
-    
-    // Use settings defined above to initialize and mount SPIFFS filesystem.
-    // Note: esp_vfs_spiffs_register is an all-in-one convenience function.
-    esp_err_t ret = esp_vfs_spiffs_register(&conf);
-
-    if (ret != ESP_OK) {
-        if (ret == ESP_FAIL) {
-            ESP_LOGE(TAG, "Failed to mount or format filesystem");
-        } else if (ret == ESP_ERR_NOT_FOUND) {
-            ESP_LOGE(TAG, "Failed to find SPIFFS partition");
-        } else {
-            ESP_LOGE(TAG, "Failed to initialize SPIFFS (%s)", esp_err_to_name(ret));
-        }
-        return;
-    }
-    
-    size_t total = 0, used = 0;
-    ret = esp_spiffs_info(NULL, &total, &used);
-    if (ret != ESP_OK) {
-        ESP_LOGE(TAG, "Failed to get SPIFFS partition information (%s)", esp_err_to_name(ret));
-    } else {
-        ESP_LOGI(TAG, "Partition size: total: %d, used: %d", total, used);
-    } 
-
-
-
     // Open renamed file for reading
     ESP_LOGI(TAG, "Reading file");
     
@@ -228,15 +196,61 @@ esp_err_t index_get_handler(httpd_req_t *req)
     return ESP_OK;
 }
 
-
 httpd_uri_t index_route = {
     .uri       = "/",
     .method    = HTTP_GET,
     .handler   = index_get_handler,
-    /* Let's pass response string in user
-     * context to demonstrate it's usage */
-    .user_ctx  = "Hello World!"
 };
+
+esp_err_t file_get_handler(httpd_req_t *req)
+{
+    ESP_LOGI(TAG, req->uri);
+    char filename[32];
+    strcpy(filename, "/spiffs/");
+    strcat(filename, strcmp(req->uri, "/") == 0 ? "index.html" : req->uri);
+    FILE * f = fopen(filename, "r");
+    if (f == NULL) {
+        ESP_LOGE(TAG, "Failed to open file %s for reading", filename);
+        return ESP_FAIL;
+    }  
+    char buffer[100] = {0};
+    while(!feof(f)) {
+        size_t len = fread(buffer, 1, 100, f);
+        httpd_resp_send_chunk(req, buffer, len);
+    }
+    fclose(f);
+    httpd_resp_send_chunk(req, NULL, 0);
+    return ESP_OK;
+}
+
+void register_file_urls(httpd_handle_t server) 
+{
+    DIR *dir_handle = opendir("/spiffs");
+    struct dirent *dir;
+
+    if(dir_handle != NULL) {
+        while((dir = readdir(dir_handle)) != NULL) {
+            if(strcmp(dir->d_name, ".") == 0 || strcmp(dir->d_name, "..") == 0) {
+                continue;
+            }
+            char * uri = malloc(strlen(dir->d_name) + 2);
+            strcpy(uri, "/");
+            if(strcmp("index.html", dir->d_name) != 0) {
+                strcat(uri, dir->d_name);
+            } 
+            ESP_LOGI(TAG, "Registering URI handler for %s with %s", uri, dir->d_name);
+            httpd_uri_t * route  = malloc(sizeof(httpd_uri_t));
+            route->uri = uri;
+            route->method = HTTP_GET;
+            route->handler = file_get_handler;
+            route->user_ctx = NULL;            
+            esp_err_t response = httpd_register_uri_handler(server, route);
+            if(response != ESP_OK) {
+                ESP_LOGE(TAG, "Failed to register URI handler with error %s", esp_err_to_name(response));
+            }
+        }
+    }
+}
 
 httpd_handle_t start_webserver(void)
 {
@@ -248,7 +262,8 @@ httpd_handle_t start_webserver(void)
     if (httpd_start(&server, &config) == ESP_OK) {
         // Set URI handlers
         ESP_LOGI(TAG, "Registering URI handlers");
-        httpd_register_uri_handler(server, &index_route);
+        //httpd_register_uri_handler(server, &index_route);
+        register_file_urls(server);
         // httpd_register_uri_handler(server, &echo);
         // httpd_register_uri_handler(server, &ctrl);
         return server;

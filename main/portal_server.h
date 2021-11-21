@@ -1,5 +1,5 @@
-#ifndef SETUP_UI_SERVER
-#define SETUP_UI_SERVER
+#ifndef SETUP_PORTAL_SERVER
+#define SETUP_PORTAL_SERVER
 
 #include <esp_http_server.h>
 
