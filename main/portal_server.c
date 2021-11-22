@@ -7,6 +7,7 @@
 #include "esp_event.h"
 #include "esp_netif.h"
 #include "esp_spiffs.h"
+#include "esp_wifi.h"
 
 static const char *TAG = "UI-Server";
 
@@ -167,12 +168,33 @@ static httpd_handle_t server = NULL;
 //     return ESP_OK;
 // }
 
-// httpd_uri_t ctrl = {
-//     .uri       = "/ctrl",
-//     .method    = HTTP_PUT,
-//     .handler   = ctrl_put_handler,
-//     .user_ctx  = NULL
-// };
+
+esp_err_t api_scan_get_handler(httpd_req_t *req)
+{
+    char buffer[128];
+    uint16_t number = DEFAULT_SCAN_LIST_SIZE;
+    wifi_ap_record_t ap_info[DEFAULT_SCAN_LIST_SIZE];
+    uint16_t ap_count = 0;
+
+    memset(ap_info, 0, sizeof(ap_info));    
+    esp_wifi_scan_start(NULL, true);
+    esp_wifi_scan_get_ap_records(&number, ap_info);
+    esp_wifi_scan_get_ap_num(&ap_count);
+    
+    httpd_resp_set_type(req, "application/json");
+    httpd_resp_send_chunk(req, "[", 1);
+    for (int i = 0; (i < DEFAULT_SCAN_LIST_SIZE) && (i < ap_count); i++) {
+        sprintf(buffer, "{\"ssid\":\"%s\",\"rssi\":%d}", ap_info[i].ssid, ap_info[i].rssi);
+        httpd_resp_send_chunk(req, buffer, strlen(buffer));
+        if (i != (ap_count - 1)) {
+            httpd_resp_send_chunk(req, ",", 1);
+        }
+    }
+    httpd_resp_send_chunk(req, "]", 1);
+    httpd_resp_send_chunk(req, NULL, 0);
+    
+    return ESP_OK;
+}
 
 esp_err_t file_get_handler(httpd_req_t *req)
 {
@@ -241,7 +263,12 @@ httpd_handle_t start_webserver(void)
     if (httpd_start(&server, &config) == ESP_OK) {
         ESP_LOGI(TAG, "Registering URI handlers");
         register_file_urls(server);
-        // httpd_register_uri_handler(server, &ctrl);
+        httpd_register_uri_handler(server, &(httpd_uri_t) {
+            .uri = "/api/scan",
+            .method = HTTP_GET,
+            .handler = api_scan_get_handler,
+            .user_ctx = NULL
+        });
         return server;
     }
 

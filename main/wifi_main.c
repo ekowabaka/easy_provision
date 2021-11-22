@@ -52,7 +52,7 @@ void wifi_init_softap()
         wifi_config.ap.authmode = WIFI_AUTH_OPEN;
     }
 
-    ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_AP));
+    ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_APSTA));
     ESP_ERROR_CHECK(esp_wifi_set_config(ESP_IF_WIFI_AP, &wifi_config));
     ESP_ERROR_CHECK(esp_wifi_start());
     ESP_LOGI(TAG, "wifi_init_softap finished. SSID:%s password:%s", EXAMPLE_ESP_WIFI_SSID, EXAMPLE_ESP_WIFI_PASS);
@@ -96,8 +96,6 @@ void app_main()
 {
     ESP_ERROR_CHECK(nvs_flash_init());
     ESP_LOGI(TAG, "ESP_WIFI_MODE_AP");
-
-    sleep(10);
 
     wifi_init_softap();
     init_filesystem();
