@@ -12,7 +12,7 @@ FSFILES=$(wildcard fs/*)
 .PHONY: spiffs
 
 spiffs.bin: $(FSFILES)
-	mkspiffs -c fs --size 0x2fc000 --page 256 --block 4096 spiffs.bin -d 5
+	mkspiffs -c fs --size 0x19000 --page 256 --block 4096 spiffs.bin -d 5
 
 spiffs: spiffs.bin
 	python $(IDF_PATH)/components/esptool_py/esptool/esptool.py \
@@ -21,4 +21,4 @@ spiffs: spiffs.bin
 		--baud 460800 \
 		--before default_reset \
 		--after hard_reset \
-		write_flash 0x90000 spiffs.bin
+		write_flash 0xe7000 spiffs.bin
