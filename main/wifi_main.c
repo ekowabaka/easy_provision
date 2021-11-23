@@ -18,6 +18,14 @@
 
 static const char *TAG = "Main";
 
+/**
+ * @brief 
+ * 
+ * @param arg 
+ * @param event_base 
+ * @param event_id 
+ * @param event_data 
+ */
 static void wifi_event_handler(void* arg, esp_event_base_t event_base, int32_t event_id, void* event_data)
 {
     if (event_id == WIFI_EVENT_AP_STACONNECTED) {
@@ -96,7 +104,7 @@ void app_main()
 {
     ESP_ERROR_CHECK(nvs_flash_init());
     ESP_LOGI(TAG, "ESP_WIFI_MODE_AP");
-
+    sleep(5);
     wifi_init_softap();
     init_filesystem();
     run_ui();

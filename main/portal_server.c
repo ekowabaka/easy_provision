@@ -184,7 +184,10 @@ esp_err_t api_scan_get_handler(httpd_req_t *req)
     httpd_resp_set_type(req, "application/json");
     httpd_resp_send_chunk(req, "[", 1);
     for (int i = 0; (i < DEFAULT_SCAN_LIST_SIZE) && (i < ap_count); i++) {
-        sprintf(buffer, "{\"ssid\":\"%s\",\"rssi\":%d}", ap_info[i].ssid, ap_info[i].rssi);
+        sprintf(
+            buffer, "{\"ssid\":\"%s\",\"rssi\":%d, \"auth\": %d}", 
+            ap_info[i].ssid, ap_info[i].rssi, ap_info[i].authmode
+        );
         httpd_resp_send_chunk(req, buffer, strlen(buffer));
         if (i != (ap_count - 1)) {
             httpd_resp_send_chunk(req, ",", 1);
@@ -202,6 +205,20 @@ esp_err_t file_get_handler(httpd_req_t *req)
     char filename[32];
     strcpy(filename, "/spiffs");
     strcat(filename, strcmp(req->uri, "/") == 0 ? "/portal_index.html" : req->uri);
+    char * extension = strrchr(filename, '.') + 1;
+    if(extension) {
+        if(strcmp(extension, "html") == 0) {
+            httpd_resp_set_type(req, "text/html");
+        } else if(strcmp(extension, "css") == 0) {
+            httpd_resp_set_type(req, "text/css");
+        } else if(strcmp(extension, "js") == 0) {
+            httpd_resp_set_type(req, "application/javascript");
+        } else if(strcmp(extension, "svg") == 0) {
+            httpd_resp_set_type(req, "image/svg+xml");
+        } else if(strcmp(extension, "ico") == 0) {
+            httpd_resp_set_type(req, "image/x-icon");
+        }
+    }
     FILE * f = fopen(filename, "r");
     if (f == NULL) {
         ESP_LOGE(TAG, "Failed to open file %s for reading", filename);
@@ -257,6 +274,7 @@ httpd_handle_t start_webserver(void)
 {
     httpd_handle_t server = NULL;
     httpd_config_t config = HTTPD_DEFAULT_CONFIG();
+    config.max_uri_handlers = 20;
 
     // Start the httpd server
     ESP_LOGI(TAG, "Starting server on port: '%d'", config.server_port);

@@ -1,29 +1,37 @@
+"""
+A mock server for development and testing of the WIFI web portal.
+"""
+
 import http.server
 import random
 import json
 import os
 
 aps = [
-    {"ssid": "Mirror", "rssi": -32},
-    {"ssid": "Door", "rssi": -64},
-    {"ssid": "Lamp", "rssi": -45},
-    {"ssid": "YingYang", "rssi": -66},
-    {"ssid": "Famous", "rssi": -79},
-    {"ssid": "Bonnie", "rssi": -80},
-    {"ssid": "Cindy", "rssi": -94},
-    {"ssid": "MOTO", "rssi": -88},
-    {"ssid": "DIRECT-LWHL-DW", "rssi": -95},
-    {"ssid": "Roku TV", "rssi": -84},
-    {"ssid": "Living Room Speaker", "rssi": -89},
-    {"ssid": "Living Room TV", "rssi": -92},
-    {"ssid": "Spinbike", "rssi": -95},
-    {"ssid": "Hollywood", "rssi": -35},
-    {"ssid": "DELL DW 2048", "rssi": -37},
-    {"ssid": "DELL DW 3072", "rssi": -45},
-    {"ssid": "Brother 4096", "rssi": -55},
+    {"ssid": "Mirror", "rssi": -32, "auth": 0},
+    {"ssid": "Door", "rssi": -64, "auth": 0},
+    {"ssid": "Lamp", "rssi": -45, "auth": 3} ,
+    {"ssid": "YingYang", "rssi": -66, "auth": 3},
+    {"ssid": "Famous", "rssi": -79, "auth": 3},
+    {"ssid": "Bonnie", "rssi": -80, "auth": 3},
+    {"ssid": "Cindy", "rssi": -94, "auth": 3},
+    {"ssid": "MOTO", "rssi": -88, "auth": 3},
+    {"ssid": "DIRECT-LWHL-DW", "rssi": -95, "auth": 0},
+    {"ssid": "Roku TV", "rssi": -84, "auth": 3},
+    {"ssid": "Living Room Speaker", "rssi": -89, "auth": 3},
+    {"ssid": "Living Room TV", "rssi": -92, "auth": 3},
+    {"ssid": "Spinbike", "rssi": -95, "auth": 3},
+    {"ssid": "Hollywood", "rssi": -35, "auth": 3},
+    {"ssid": "DELL DW 2048", "rssi": -37, "auth": 3},
+    {"ssid": "DELL DW 3072", "rssi": -45, "auth": 3},
+    {"ssid": "Brother 4096", "rssi": -55, "auth": 3}
 ]
 
+
 class MockServer(http.server.BaseHTTPRequestHandler):
+    """
+    An implementation of the request handler.
+    """
 
     def do_GET(self):
         if self.path == "/":
@@ -37,7 +45,7 @@ class MockServer(http.server.BaseHTTPRequestHandler):
             self.send_response(200)
             self.send_header("Content-type", "application/json")
             self.end_headers()
-            self.wfile.write(json.dumps(random.sample(aps, 10)).encode())
+            self.wfile.write(json.dumps(sorted(random.sample(aps, 10), key=lambda x: x['rssi'], reverse=True)).encode())
 
         else:
             file_path = "fs" + self.path
@@ -49,6 +57,8 @@ class MockServer(http.server.BaseHTTPRequestHandler):
                     content_type = "text/css"  
                 elif extension == "js":
                     content_type = "application/javascript"
+                elif extension == "svg":
+                    content_type = "image/svg+xml"
 
                 self.send_response(200)
                 self.send_header("Content-type", content_type)
