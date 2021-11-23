@@ -52,6 +52,15 @@ esp_err_t api_scan_get_handler(httpd_req_t *req)
     return ESP_OK;
 }
 
+esp_err_t redirect_handler(httpd_req_t *req)
+{
+    ESP_LOGI(TAG, "Redirecting %s", req->uri);
+    httpd_resp_set_status(req, "301 Moved Permanently");
+    httpd_resp_set_hdr(req, "Location", "/");
+    httpd_resp_send(req, NULL, 0);
+    return ESP_OK;
+}
+
 /**
  * @brief Request handler for serving files endpoint. 
  * 
@@ -63,7 +72,6 @@ esp_err_t api_scan_get_handler(httpd_req_t *req)
  */
 esp_err_t file_get_handler(httpd_req_t *req)
 {
-    ESP_LOGI(TAG, req->uri);
     char filename[32];
     strcpy(filename, "/spiffs");
     strcat(filename, strcmp(req->uri, "/") == 0 ? "/portal_index.html" : req->uri);
@@ -83,7 +91,6 @@ esp_err_t file_get_handler(httpd_req_t *req)
     }
     FILE * f = fopen(filename, "r");
     if (f == NULL) {
-        ESP_LOGE(TAG, "Failed to open file %s for reading", filename);
         return ESP_FAIL;
     }  
     char buffer[100] = {0};
@@ -95,6 +102,8 @@ esp_err_t file_get_handler(httpd_req_t *req)
     httpd_resp_send_chunk(req, NULL, 0);
     return ESP_OK;
 }
+
+
 
 /**
  * @brief Register individual request handlers for all files prefixed with 'portal_' in the SPIFFS.
@@ -145,18 +154,37 @@ httpd_handle_t start_webserver(void)
     httpd_handle_t server = NULL;
     httpd_config_t config = HTTPD_DEFAULT_CONFIG();
     config.max_uri_handlers = 20;
+    config.uri_match_fn = httpd_uri_match_wildcard;
 
     // Start the httpd server
     ESP_LOGI(TAG, "Starting server on port: '%d'", config.server_port);
     if (httpd_start(&server, &config) == ESP_OK) {
         ESP_LOGI(TAG, "Registering URI handlers");
-        register_file_urls(server);
+        //register_file_urls(server);
         httpd_register_uri_handler(server, &(httpd_uri_t) {
             .uri = "/api/scan",
             .method = HTTP_GET,
             .handler = api_scan_get_handler,
             .user_ctx = NULL
         });
+        httpd_register_uri_handler(server, &(httpd_uri_t) {
+            .uri = "/",
+            .method = HTTP_GET,
+            .handler = file_get_handler,
+            .user_ctx = NULL
+        });
+        httpd_register_uri_handler(server, &(httpd_uri_t) {
+            .uri = "/portal_*",
+            .method = HTTP_GET,
+            .handler = file_get_handler,
+            .user_ctx = NULL
+        });
+        httpd_register_uri_handler(server, &(httpd_uri_t) {
+            .uri = "/*",
+            .method = HTTP_GET,
+            .handler = redirect_handler,
+            .user_ctx = NULL
+        });        
         return server;
     }
 

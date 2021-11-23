@@ -7,12 +7,11 @@
 #include "esp_log.h"
 #include "esp_spiffs.h"
 #include "nvs_flash.h"
-#include "mdns.h"
-
 
 #include "lwip/err.h"
 #include "lwip/sys.h"
 #include "portal_server.h"
+#include "captdns.h"
 
 #define EXAMPLE_ESP_WIFI_SSID      "LED-Matrix-AP" //CONFIG_ESP_WIFI_SSID
 #define EXAMPLE_ESP_WIFI_PASS      "" //CONFIG_ESP_WIFI_PASSWORD
@@ -102,37 +101,13 @@ void init_filesystem() {
     }    
 }
 
-void init_dns()
-{
-    ESP_LOGI(TAG, "Initializing mDNS");
-    mdns_init();
-    mdns_hostname_set("esp32-led-matrix");
-    mdns_instance_name_set("esp32-led-matrix");
-    mdns_service_add("http", "_tcp", "local", 80, NULL, 0);
-    mdns_service_add("https", "_tcp", "local", 443, NULL, 0);
-    mdns_service_add("dns-sd", "_udp", "local", 53, NULL, 0);
-    mdns_service_add("dns-sd", "_tcp", "local", 53, NULL, 0);
-    mdns_service_add("dns-sd", "_tcp", "local", 5353, NULL, 0);
-    mdns_service_add("dns-sd", "_udp", "local", 5353, NULL, 0);
-    mdns_service_add("dns-sd", "_tcp", "local", 5354, NULL, 0);
-    mdns_service_add("dns-sd", "_udp", "local", 5354, NULL, 0);
-    mdns_service_add("dns-sd", "_tcp", "local", 5355, NULL, 0);
-    mdns_service_add("dns-sd", "_udp", "local", 5355, NULL, 0);
-    mdns_service_add("dns-sd", "_tcp", "local", 5356, NULL, 0);
-    mdns_service_add("dns-sd", "_udp", "local", 5356, NULL, 0);
-    mdns_service_add("dns-sd", "_tcp", "local", 5357, NULL, 0);
-    mdns_service_add("dns-sd", "_udp", "local", 5357, NULL, 0);
-    mdns_service_add("dns-sd", "_tcp", "local", 5358, NULL, 0);
-    mdns_service_add("dns-sd", "_udp", "local", 5358, NULL, 0);
-}
-
 void app_main()
 {
     ESP_ERROR_CHECK(nvs_flash_init());
     ESP_LOGI(TAG, "ESP_WIFI_MODE_AP");
     sleep(5);
     init_wifi();
-    init_dns();
+    captdnsInit();
 
     init_filesystem();
     run_ui();
