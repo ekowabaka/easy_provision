@@ -139,7 +139,6 @@ esp_err_t api_connect_post_handler(httpd_req_t *req)
         return ESP_FAIL;
     }
     
-    //esp_wifi_stop();
     wifi_config_t wifi_config = {
         .ap = {
             .ssid = "LED-Matrix-AP",
