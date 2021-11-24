@@ -33,6 +33,18 @@ class MockServer(http.server.BaseHTTPRequestHandler):
     An implementation of the request handler.
     """
 
+    def do_POST(self):
+        if self.path == "/api/connect":
+            self.send_response(200)
+            self.send_header("Content-type", "application/json")
+            self.end_headers()
+            
+            content_length = int(self.headers['Content-Length'])
+            data_input = bytes.decode(self.rfile.read(content_length))
+            print("Content recieved: " + data_input)
+
+            self.wfile.write(json.dumps({"success": False}).encode())
+
     def do_GET(self):
         if self.path == "/":
             self.send_response(200)

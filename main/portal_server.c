@@ -9,6 +9,8 @@
 #include "esp_spiffs.h"
 #include "esp_wifi.h"
 
+#include "cJSON.h"
+
 static const char *TAG = "UI-Server";
 
 /**
@@ -105,49 +107,49 @@ esp_err_t file_get_handler(httpd_req_t *req)
 
 
 
-/**
- * @brief Register individual request handlers for all files prefixed with 'portal_' in the SPIFFS.
- * 
- * A wildcard request handler could have been used, but it seems the ESP8266 version of the ESP-IDF library does not 
- * have this implemented.
- * 
- * @param server 
- */
-void register_file_urls(httpd_handle_t server) 
-{
-    DIR *dir_handle = opendir("/spiffs");
-    struct dirent *dir;
-    char * prefix = malloc(8);
+// /**
+//  * @brief Register individual request handlers for all files prefixed with 'portal_' in the SPIFFS.
+//  * 
+//  * A wildcard request handler could have been used, but it seems the ESP8266 version of the ESP-IDF library does not 
+//  * have this implemented.
+//  * 
+//  * @param server 
+//  */
+// void register_file_urls(httpd_handle_t server) 
+// {
+//     DIR *dir_handle = opendir("/spiffs");
+//     struct dirent *dir;
+//     char * prefix = malloc(8);
 
-    if(dir_handle != NULL) {
-        while((dir = readdir(dir_handle)) != NULL) {
+//     if(dir_handle != NULL) {
+//         while((dir = readdir(dir_handle)) != NULL) {
             
-            if(strcmp(dir->d_name, ".") == 0 || strcmp(dir->d_name, "..") == 0) {
-                continue;
-            }
-            strncpy(prefix, dir->d_name, 7);
-            prefix[7] = '\0';
-            ESP_LOGI(TAG, "Prefixes %s %s", prefix, dir->d_name);
-            if(strcmp(prefix, "portal_") != 0) {
-                continue;
-            }
+//             if(strcmp(dir->d_name, ".") == 0 || strcmp(dir->d_name, "..") == 0) {
+//                 continue;
+//             }
+//             strncpy(prefix, dir->d_name, 7);
+//             prefix[7] = '\0';
+//             ESP_LOGI(TAG, "Prefixes %s %s", prefix, dir->d_name);
+//             if(strcmp(prefix, "portal_") != 0) {
+//                 continue;
+//             }
 
-            char * uri = malloc(strlen(dir->d_name) + 2);
-            strcpy(uri, "/");
-            if(strcmp("portal_index.html", dir->d_name) != 0) {
-                strcat(uri, dir->d_name);
-            } 
-            ESP_LOGI(TAG, "Registering URI handler for %s with %s", uri, dir->d_name);
-            httpd_uri_t * route  = malloc(sizeof(httpd_uri_t));
-            route->uri = uri;
-            route->method = HTTP_GET;
-            route->handler = file_get_handler;
-            route->user_ctx = NULL;            
-            httpd_register_uri_handler(server, route);
-        }
-    }
-    free(prefix);
-}
+//             char * uri = malloc(strlen(dir->d_name) + 2);
+//             strcpy(uri, "/");
+//             if(strcmp("portal_index.html", dir->d_name) != 0) {
+//                 strcat(uri, dir->d_name);
+//             } 
+//             ESP_LOGI(TAG, "Registering URI handler for %s with %s", uri, dir->d_name);
+//             httpd_uri_t * route  = malloc(sizeof(httpd_uri_t));
+//             route->uri = uri;
+//             route->method = HTTP_GET;
+//             route->handler = file_get_handler;
+//             route->user_ctx = NULL;            
+//             httpd_register_uri_handler(server, route);
+//         }
+//     }
+//     free(prefix);
+// }
 
 httpd_handle_t start_webserver(void)
 {
@@ -165,6 +167,12 @@ httpd_handle_t start_webserver(void)
             .uri = "/api/scan",
             .method = HTTP_GET,
             .handler = api_scan_get_handler,
+            .user_ctx = NULL
+        });
+        httpd_register_uri_handler(server, &(httpd_uri_t) {
+            .uri = "/api/connect",
+            .method = HTTP_POST,
+            .handler = api_connect_post_handler,
             .user_ctx = NULL
         });
         httpd_register_uri_handler(server, &(httpd_uri_t) {

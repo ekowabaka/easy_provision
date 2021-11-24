@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta charset="UTF-8">
+    <title>Connect</title>
+    <script type="text/javascript" src="/portal_script.js"></script>
+    <link rel="stylesheet" type="text/css" href="/portal_style.css">
+</head>
+<body>
+    <header id="head"><h1>Select a Wifi Network</h1></header>
+    <div id="aps-list">
+
+    </div>
+    <footer id="foot">
+        <div id="refresh-button">
+            <img src="/portal_sync.svg" id="refresh-icon" />
+            <span id="refresh-label">Refresh wifi list</span>
+        </div>    
+    </footer>
+    <div class="modal" id="password-window">
+        <div class="wrapper">
+            <span id="message">Enter the password for the <span id="network-name" style="font-weight: bold;">Network</span> network.</span>
+            <input id="password-input" type="password" name="password" placeholder="Password" minlength="8">
+            <a class="button" id="connect-button">Connect</a>
+        </div>
+    </div>
+
+    <div class="modal" id="connecting-window">
+        <div class="wrapper">
+            <span id="message">Connecting to <span id="network-name" style="font-weight: bold;">Network</span> network.</span>
+            <img src="/portal_sync.svg" id="connecting-icon" />
+        </div>
+    </div>
+</body>
+</html>
