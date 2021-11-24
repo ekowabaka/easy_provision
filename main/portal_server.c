@@ -105,7 +105,68 @@ esp_err_t file_get_handler(httpd_req_t *req)
     return ESP_OK;
 }
 
+esp_err_t api_connect_post_handler(httpd_req_t *req)
+{
+    size_t buf_len = req->content_len + 1;
+    char * buf = malloc(buf_len);
+    size_t received = 0;
+    //s_connect_event_group = xEventGroupCreate();
 
+    while(received < req->content_len) {
+        size_t ret = httpd_req_recv(req, buf + received, buf_len - received);
+        if(ret <= 0 && ret == HTTPD_SOCK_ERR_TIMEOUT) {
+            httpd_resp_send_408(req);
+            free(buf);
+            return ESP_FAIL;
+        }
+        received += ret;
+    }
+    ESP_LOGI(TAG, "Received POST request %s", buf);
+    cJSON *root = cJSON_Parse(buf);
+    if(root == NULL) {
+        ESP_LOGE(TAG, "Error parsing JSON");
+        httpd_resp_send_500(req);
+        free(buf);
+        return ESP_FAIL;
+    }
+    cJSON *ssid = cJSON_GetObjectItemCaseSensitive(root, "ssid");
+    cJSON *password = cJSON_GetObjectItemCaseSensitive(root, "password");
+    if(!ssid || !password) {
+        ESP_LOGE(TAG, "Error parsing JSON");
+        httpd_resp_send_500(req);
+        cJSON_Delete(root);
+        free(buf);
+        return ESP_FAIL;
+    }
+    
+    //esp_wifi_stop();
+    wifi_config_t wifi_config = {
+        .ap = {
+            .ssid = "LED-Matrix-AP",
+            .ssid_len = strlen("LED-Matrix-AP"),
+            .password = "",
+            .max_connection = 2,
+            .authmode = WIFI_AUTH_OPEN
+        }
+    };
+    strncpy((char *)&wifi_config.sta.ssid, ssid->valuestring, sizeof(wifi_config.sta.ssid));
+    strncpy((char *)&wifi_config.sta.password, password->valuestring, sizeof(wifi_config.sta.password));
+
+    ESP_ERROR_CHECK(esp_wifi_set_config(ESP_IF_WIFI_STA, &wifi_config));
+    ESP_LOGI(TAG, "Connecting to WiFi with ssid:%s, password:%s", wifi_config.sta.ssid, wifi_config.sta.password);
+    esp_wifi_start();
+    esp_err_t ret = esp_wifi_connect();
+    if(ret != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to connect to WiFi %s", esp_err_to_name(ret));
+    } else {
+        ESP_LOGI(TAG, "Connected");
+    }
+    
+    free(buf);
+    cJSON_Delete(root);
+
+    return ESP_OK;
+}
 
 // /**
 //  * @brief Register individual request handlers for all files prefixed with 'portal_' in the SPIFFS.
@@ -227,7 +288,7 @@ static void connect_handler(void* arg, esp_event_base_t event_base, int32_t even
 void run_ui()
 {
     ESP_ERROR_CHECK(esp_event_handler_register(IP_EVENT, IP_EVENT_STA_GOT_IP, &connect_handler, &server));
-    ESP_ERROR_CHECK(esp_event_handler_register(WIFI_EVENT, WIFI_EVENT_STA_DISCONNECTED, &disconnect_handler, &server));
+    ESP_ERROR_CHECK(esp_event_handler_register(WIFI_EVENT, WIFI_EVENT_AP_STADISCONNECTED, &disconnect_handler, &server));
 
     server = start_webserver();
 }
