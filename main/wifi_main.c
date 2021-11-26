@@ -17,19 +17,9 @@
 static const char *TAG = "Main";
 static int connection_status = 0;
 static wifi_config_t wifi_config;
-// = {
-//         .ap = {
-//             .ssid = "LED-Matrix-AP",
-//             .ssid_len = strlen("LED-Matrix-AP"),
-//             .password = "",
-//             .max_connection = 2,
-//             .authmode = WIFI_AUTH_OPEN
-//         }
-//     };
-
 
 /**
- * @brief 
+ * @brief Update the status of the different wifi connections.
  * 
  * @param arg 
  * @param event_base 
@@ -44,15 +34,20 @@ static void wifi_event_handler(void* arg, esp_event_base_t event_base, int32_t e
     } else if (event_id == WIFI_EVENT_AP_STADISCONNECTED) {
         wifi_event_ap_stadisconnected_t* event = (wifi_event_ap_stadisconnected_t*) event_data;
         ESP_LOGI(TAG, "station "MACSTR" leave, AID=%d", MAC2STR(event->mac), event->aid);
-    } else if (event_id == WIFI_EVENT_STA_CONNECTED){
+    } else if (event_id == WIFI_EVENT_STA_CONNECTED) {
         ESP_LOGI(TAG, "station connected");
-    } else if (event_id == WIFI_EVENT_STA_DISCONNECTED){
+        connection_status = CONNECTION_STATUS_CONNECTED;
+    } else if (event_id == WIFI_EVENT_STA_DISCONNECTED) {
         ESP_LOGI(TAG, "station disconnected");
+        if(connection_status == CONNECTION_STATUS_CONNECTING) {
+            connection_status = CONNECTION_STATUS_FAILED;
+        } else {
+            connection_status = CONNECTION_STATUS_DISCONNECTED;
+        }
     }
 }
 
-static void on_got_ip(void *arg, esp_event_base_t event_base,
-                      int32_t event_id, void *event_data)
+static void on_got_ip(void *arg, esp_event_base_t event_base, int32_t event_id, void *event_data)
 {
     ip_event_got_ip_t *event = (ip_event_got_ip_t *)event_data;
     ESP_LOGI(TAG, "got ip:%s", ip4addr_ntoa(&event->ip_info.ip));
@@ -66,7 +61,6 @@ int wifi_get_connection_status()
 int wifi_scan(wifi_ap_record_t *ap_info)
 {
     uint16_t number = DEFAULT_SCAN_LIST_SIZE;
-    //wifi_ap_record_t ap_info[DEFAULT_SCAN_LIST_SIZE];
     uint16_t ap_count = 0;
 
     memset(ap_info, 0, sizeof(wifi_ap_record_t) * DEFAULT_SCAN_LIST_SIZE);    
@@ -103,6 +97,7 @@ esp_err_t wifi_start_station(char * ssid, char * password)
 {
     strncpy((char *)&wifi_config.sta.ssid, ssid, sizeof(wifi_config.sta.ssid));
     strncpy((char *)&wifi_config.sta.password, password, sizeof(wifi_config.sta.password));
+    connection_status = CONNECTION_STATUS_CONNECTING;
 
     ESP_ERROR_CHECK(esp_wifi_set_config(ESP_IF_WIFI_STA, &wifi_config));
     ESP_LOGI(TAG, "Connecting to WiFi with ssid:%s, password:%s", wifi_config.sta.ssid, wifi_config.sta.password);

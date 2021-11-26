@@ -20,6 +20,17 @@ static const char *TAG = "UI-Server";
  */
 static httpd_handle_t server = NULL;
 
+esp_err_t api_status_get_handler(httpd_req_t *req)
+{
+    char buffer[128];
+
+    httpd_resp_set_type(req, "application/json");
+    sprintf(buffer, "{\"status\":%d}", wifi_get_connection_status());
+    httpd_resp_send(req, buffer, strlen(buffer));
+
+    return ESP_OK;
+}
+
 /**
  * @brief Request handler for the ['/api/scan'] endpoint.
  * 
@@ -165,12 +176,12 @@ httpd_handle_t start_webserver(void)
             .handler = api_connect_post_handler,
             .user_ctx = NULL
         });
-        // httpd_register_uri_handler(server, &(httpd_uri_t) {
-        //     .uri = "/api/status",
-        //     .method = HTTP_POST,
-        //     .handler = api_status_get_handler,
-        //     .user_ctx = NULL
-        // });
+        httpd_register_uri_handler(server, &(httpd_uri_t) {
+            .uri = "/api/status",
+            .method = HTTP_POST,
+            .handler = api_status_get_handler,
+            .user_ctx = NULL
+        });
         httpd_register_uri_handler(server, &(httpd_uri_t) {
             .uri = "/",
             .method = HTTP_GET,

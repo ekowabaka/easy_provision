@@ -29,6 +29,11 @@ aps = [
 
 
 class MockServer(http.server.BaseHTTPRequestHandler):
+
+    def __init__(self, request: bytes, client_address: tuple[str, int], server: socketserver.BaseServer) -> None:
+        super().__init__(request, client_address, server)
+        
+
     """
     An implementation of the request handler.
     """
