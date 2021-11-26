@@ -105,6 +105,23 @@ footer {
     outline: none;
 }
 
+.wrapper input.error {
+    background-color: #ffecec;
+    border-color: #f77575
+}
+
+/** **/
+.spinner {
+    animation: rotate 1.5s linear infinite;
+    width: 32px;
+}
+
+@keyframes rotate {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
 /* Modal */
 .modal{
     display: none;
@@ -120,7 +137,7 @@ footer {
     top:0px;
     width:100%;
     height:100%;
-    background-color: rgba(0, 0, 0, 0.1);
+    background-color: rgba(0, 0, 0, 0.3);
     display:none;
     z-index: 1000;
 }

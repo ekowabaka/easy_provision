@@ -6,6 +6,9 @@ import http.server
 import random
 import json
 import os
+import time
+import urllib.parse
+
 
 aps = [
     {"ssid": "Mirror", "rssi": -32, "auth": 0},
@@ -30,9 +33,7 @@ aps = [
 
 class MockServer(http.server.BaseHTTPRequestHandler):
 
-    def __init__(self, request: bytes, client_address: tuple[str, int], server: socketserver.BaseServer) -> None:
-        super().__init__(request, client_address, server)
-        
+    num_status_calls = 0
 
     """
     An implementation of the request handler.
@@ -48,9 +49,13 @@ class MockServer(http.server.BaseHTTPRequestHandler):
             data_input = bytes.decode(self.rfile.read(content_length))
             print("Content recieved: " + data_input)
 
-            self.wfile.write(json.dumps({"success": False}).encode())
+            time.sleep(random.randint(3, 8))
+
+            self.wfile.write(json.dumps(True).encode())
+            MockServer.num_status_calls = 0
 
     def do_GET(self):
+
         if self.path == "/":
             self.send_response(200)
             self.send_header("Content-type", "text/html")
@@ -64,8 +69,28 @@ class MockServer(http.server.BaseHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(json.dumps(sorted(random.sample(aps, 10), key=lambda x: x['rssi'], reverse=True)).encode())
 
+        elif self.path == "/api/status":
+            self.send_response(200)
+            self.send_header("Content-type", "application/json")
+            self.end_headers()
+            status = "connecting"
+            
+            if MockServer.num_status_calls == 0:
+                MockServer.num_status_calls += 1
+                status = "connecting"
+            elif MockServer.num_status_calls == 1:
+                MockServer.num_status_calls += 1
+                status = "connecting"
+            elif MockServer.num_status_calls == 2:
+                MockServer.num_status_calls += 1
+                status = "connected"
+            
+            self.wfile.write(json.dumps({"status": status}).encode())
+
         else:
-            file_path = "fs" + self.path
+            parsed = urllib.parse.urlparse(self.path)
+
+            file_path = "fs" + parsed.path #self.path
             if(os.path.exists(file_path)):
                 extension = self.path.split(".")[-1]
                 content_type = "text/html"

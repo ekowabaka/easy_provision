@@ -4,40 +4,66 @@ var foot;
 var offsetHeight;
 var networks = [];
 var activeNetwork;
+var passwordInput;;
 
 function getPassword(network) {
     return function() {
-        document.getElementById("network-name").innerHTML = network.ssid;
+        document.querySelectorAll(".network-name").forEach(x => x.innerHTML = network.ssid);
         modal.open("#password-window")
         activeNetwork = network;
     }
 }
 
-function modalShown() {
-    let password = document.getElementById("password-input");
-    password.focus();
-    document.getElementById("connect-button").addEventListener("mouseup", 
-        e => {
-            e.preventDefault();
-            e.stopPropagation();
-            modal.close();
-            modal.open("#connecting-window");
-
-            fetch("/api/connect", {
-                method: "POST",
-                headers: {"Content-Type": "application/json"},
-                body: JSON.stringify({"ssid": activeNetwork.ssid, "password": password.value})
-            })
-            .then(response => response.json())
-            .then(data => {
-                // Once we're here then the connection definitely failed.
+function pollConnectionStatus() {
+    fetch("/api/status")
+        .then(response => response.json())
+        .then(data => {
+            if(data.status === "connected") {
+                window.location.href = "/portal_connected.html";
+            } else if(data.status === "failed") {
                 modal.close();
-                modal.open("#password-window")
-            })    
-        });
+                modal.open("#failed-window");
+            } else {
+                setTimeout(pollConnectionStatus, 1000);
+            }
+        })
+}
+
+function startConnection(e) {
+    e.preventDefault();
+    e.stopPropagation();
+
+    modal.close();
+    modal.open("#connecting-window", false);
+
+    fetch("/api/connect", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify(
+            {
+                "ssid": activeNetwork.ssid, 
+                "password": passwordInput.value
+            })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if(data === true) {
+            pollConnectionStatus()
+        } else {
+            modal.close();
+            modal.open("#password-window")    
+        }
+    })    
+}
+
+function showPasswordWindow(e) {
+    passwordInput = e.detail.modal.querySelector("input[type='password']")
+    passwordInput.focus();
+    e.detail.modal.querySelector(".button").addEventListener("mouseup", startConnection);
 }
 
 function refresh() {
+    apsList.innerHTML = "<div style='text-align:center;padding-top:50px'><img class='spinner' src='/portal_sync.svg' /></div>";
     fetch("/api/scan")
         .then(response => response.json())
         .then(data => {
@@ -67,7 +93,8 @@ function init() {
     apsList = document.getElementById("aps-list");
     head = document.getElementById("head");
     foot = document.getElementById("foot");
-    document.getElementById("password-window").addEventListener("shown", modalShown);
+    document.getElementById("password-window").addEventListener("shown", showPasswordWindow);
+    document.getElementById("failed-window").addEventListener("shown", showPasswordWindow);
     console.log(document.getElementById("head").offsetHeight, document.getElementById("foot").offsetHeight);
     resize();
     refresh();
@@ -79,10 +106,9 @@ window.addEventListener("load", init);
  * A simple object for presenting modal windows.
  */
 var modal = new (function () {
-    let modalCount = 0;
     let openModal = {};
 
-    this.open = function (description) {
+    this.open = function (description, hasCloseButton) {
         let object = document.querySelector(description);
         let backdrop = document.createElement('div');
         backdrop.classList.add('modal-backdrop');
@@ -97,7 +123,10 @@ var modal = new (function () {
 
         object.parentNode.removeChild(object);
         modal.classList.add('modal-wrapper');
-        modal.insertBefore(close, modal.firstChild);
+
+        if(hasCloseButton!==false) {
+            modal.insertBefore(close, modal.firstChild);
+        }
         modal.style.width = width + 'px';
         modal.style.left = left + 'px';
         modal.style.top = top + 'px';
@@ -116,7 +145,6 @@ var modal = new (function () {
     }
 
     this.close = function (modal) {
-        //let modalData = openModals.get(getObject(modal));
         let content = openModal['content'];
         let backdrop = openModal['backdrop'];
 

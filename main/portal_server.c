@@ -112,17 +112,26 @@ esp_err_t file_get_handler(httpd_req_t *req)
     return ESP_OK;
 }
 
+/**
+ * @brief Request handler for the ['/api/connect'] endpoint.
+ * 
+ * @param req 
+ * @return esp_err_t 
+ */
 esp_err_t api_connect_post_handler(httpd_req_t *req)
 {
     size_t buf_len = req->content_len + 1;
     char * buf = malloc(buf_len);
     size_t received = 0;
+    char * failure = "false";
+    char * success = "true";
 
     // Download all the json content that was sent in post
     while(received < req->content_len) {
         size_t ret = httpd_req_recv(req, buf + received, buf_len - received);
         if(ret <= 0 && ret == HTTPD_SOCK_ERR_TIMEOUT) {
             httpd_resp_send_408(req);
+            httpd_resp_send(req, failure, strlen(failure));
             free(buf);
             return ESP_FAIL;
         }
@@ -133,6 +142,7 @@ esp_err_t api_connect_post_handler(httpd_req_t *req)
     if(root == NULL) {
         ESP_LOGE(TAG, "Error parsing JSON");
         httpd_resp_send_500(req);
+        httpd_resp_send(req, failure, strlen(failure));
         free(buf);
         return ESP_FAIL;
     }
@@ -141,11 +151,18 @@ esp_err_t api_connect_post_handler(httpd_req_t *req)
     if(!ssid || !password) {
         ESP_LOGE(TAG, "Error parsing JSON");
         httpd_resp_send_500(req);
+        httpd_resp_send(req, failure, strlen(failure));
         cJSON_Delete(root);
         free(buf);
         return ESP_FAIL;
     }
-    wifi_start_station(ssid->valuestring, password->valuestring);    
+    if(wifi_start_station(ssid->valuestring, password->valuestring) == ESP_OK) {
+        httpd_resp_set_status(req, "200 OK");
+        httpd_resp_send(req, success, strlen(success));
+    } else {
+        httpd_resp_set_status(req, "500 Internal Server Error");
+        httpd_resp_send(req, failure, strlen(failure));
+    }
     free(buf);
     cJSON_Delete(root);
 

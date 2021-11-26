@@ -20,16 +20,24 @@
     </footer>
     <div class="modal" id="password-window">
         <div class="wrapper">
-            <span id="message">Enter the password for the <span id="network-name" style="font-weight: bold;">Network</span> network.</span>
-            <input id="password-input" type="password" name="password" placeholder="Password" minlength="8">
-            <a class="button" id="connect-button">Connect</a>
+            <span class="message">Enter the password for the <span class="network-name" style="font-weight: bold;">Network</span> network.</span>
+            <input type="password" name="password" placeholder="Password" minlength="8">
+            <a class="button">Connect</a>
+        </div>
+    </div>
+
+    <div class="modal" id="failed-window">
+        <div class="wrapper">
+            <span class="message">Failed to connect to <span class="network-name" style="font-weight: bold;">Network</span>. Please re-enter the password.</span>
+            <input type="password" class="error" name="password" placeholder="Password" minlength="8">
+            <a class="button">Connect</a>
         </div>
     </div>
 
     <div class="modal" id="connecting-window">
-        <div class="wrapper">
-            <span id="message">Connecting to <span id="network-name" style="font-weight: bold;">Network</span> network.</span>
-            <img src="/portal_sync.svg" id="connecting-icon" />
+        <div class="wrapper" style="text-align: center;">
+            <span class="message">Connecting to <span class="network-name" style="font-weight: bold;">Network</span> network.</span>
+            <div><img src="/portal_sync.svg" class="spinner" id="connecting-icon" /></div>
         </div>
     </div>
 </body>
