@@ -83,14 +83,14 @@ class MockServer(http.server.BaseHTTPRequestHandler):
                 status = "connecting"
             elif MockServer.num_status_calls == 2:
                 MockServer.num_status_calls += 1
-                status = "connected"
+                status = "failed"
             
             self.wfile.write(json.dumps({"status": status}).encode())
 
         else:
             parsed = urllib.parse.urlparse(self.path)
 
-            file_path = "fs" + parsed.path #self.path
+            file_path = "fs" + parsed.path 
             if(os.path.exists(file_path)):
                 extension = self.path.split(".")[-1]
                 content_type = "text/html"
@@ -117,10 +117,4 @@ if __name__ == '__main__':
     server_address = ('', 8080)
     httpd = http.server.HTTPServer(server_address, MockServer)
     httpd.serve_forever()    
-
-
-# """
-# A function that serves content for route /api/scan
-# """
-# def api_scan():
-#     selected_aps = random.sample(aps, random.randint(1, 8))
+    print("Server started")

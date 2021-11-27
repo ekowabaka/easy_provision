@@ -3,14 +3,20 @@ var head;
 var foot;
 var offsetHeight;
 var networks = [];
-var activeNetwork;
-var passwordInput;;
+var activeSSID;
+var passwordInput;
+var scanning = false;
 
 function getPassword(network) {
     return function() {
         document.querySelectorAll(".network-name").forEach(x => x.innerHTML = network.ssid);
-        modal.open("#password-window")
-        activeNetwork = network;
+        activeSSID = network.ssid;
+        if(network.auth > 0) {
+            modal.open("#password-window")
+        } else {
+            passwordInput = undefined;
+            startConnection();
+        }
     }
 }
 
@@ -19,7 +25,7 @@ function pollConnectionStatus() {
         .then(response => response.json())
         .then(data => {
             if(data.status === "connected") {
-                window.location.href = "/portal_connected.html";
+                window.location.href = "/portal_connected.html?ssid=" + activeSSID;
             } else if(data.status === "failed") {
                 modal.close();
                 modal.open("#failed-window");
@@ -30,8 +36,11 @@ function pollConnectionStatus() {
 }
 
 function startConnection(e) {
-    e.preventDefault();
-    e.stopPropagation();
+
+    if(e) {
+        e.preventDefault();
+        e.stopPropagation();    
+    }
 
     modal.close();
     modal.open("#connecting-window", false);
@@ -41,8 +50,8 @@ function startConnection(e) {
         headers: {"Content-Type": "application/json"},
         body: JSON.stringify(
             {
-                "ssid": activeNetwork.ssid, 
-                "password": passwordInput.value
+                "ssid": activeSSID, 
+                "password": passwordInput !== undefined ?? passwordInput.value | ""
             })
     })
     .then(response => response.json())
@@ -63,6 +72,10 @@ function showPasswordWindow(e) {
 }
 
 function refresh() {
+    if(scanning) {
+        return;
+    }
+    scanning = true;
     apsList.innerHTML = "<div style='text-align:center;padding-top:50px'><img class='spinner' src='/portal_sync.svg' /></div>";
     fetch("/api/scan")
         .then(response => response.json())
@@ -79,6 +92,7 @@ function refresh() {
                 element.addEventListener('click', getPassword(ap))
                 apsList.appendChild(element);
             })
+            scanning = false;
         })
 }
 
@@ -86,21 +100,6 @@ function resize() {
     let height = window.innerHeight - (head.offsetHeight + foot.offsetHeight);
     apsList.style.height = `${height}px`;
 }
-
-function init() {
-    document.getElementById("refresh-button").addEventListener("click", refresh);
-    window.addEventListener("resize", resize);
-    apsList = document.getElementById("aps-list");
-    head = document.getElementById("head");
-    foot = document.getElementById("foot");
-    document.getElementById("password-window").addEventListener("shown", showPasswordWindow);
-    document.getElementById("failed-window").addEventListener("shown", showPasswordWindow);
-    console.log(document.getElementById("head").offsetHeight, document.getElementById("foot").offsetHeight);
-    resize();
-    refresh();
-}
-
-window.addEventListener("load", init);
 
 /**
  * A simple object for presenting modal windows.
@@ -145,11 +144,16 @@ var modal = new (function () {
     }
 
     this.close = function (modal) {
+        if(!openModal.content) {
+            return;
+        }
+
         let content = openModal['content'];
         let backdrop = openModal['backdrop'];
 
         backdrop.parentNode.removeChild(backdrop);
         document.body.appendChild(content);
         content.classList.add('modal');
+        openModal = {};
     }
 })();

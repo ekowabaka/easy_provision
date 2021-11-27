@@ -5,14 +5,38 @@
     <meta charset="UTF-8">
     <title>Connect</title>
     <script type="text/javascript" src="/portal_script.js"></script>
+    <script type="text/javascript">
+    function init() {
+        passwordInput = document.getElementById("password");
+        document.getElementById("connect-button").addEventListener("click", function() {
+            activeSSID = document.getElementById("ssid").value;
+            document.querySelectorAll(".network-name").forEach(x => x.innerHTML = activeSSID);
+            startConnection();
+        });
+    }
+    window.addEventListener("load", init);        
+    </script>
     <link rel="stylesheet" type="text/css" href="/portal_style.css">
 </head>
 <body>
     <header id="head"><h1>Manually connect to a WiFi Network</h1></header>
     <div class="wrapper">
-        <input type="text" name="ssid" placeholder="SSID" />
-        <input type="password" name="password" placeholder="password" />
-        <input type="submit" value="Connect" class="button"/>
+        <input type="text" name="ssid" placeholder="SSID" id="ssid" />
+        <input type="password" name="password" placeholder="password" id="password" />
+        <a class="button" id="connect-button"> Connect </a>
     </div>
+    <div class="modal" id="connecting-window">
+        <div class="wrapper" style="text-align: center;">
+            <span class="message">Connecting to <span class="network-name" style="font-weight: bold;">Network</span>.</span>
+            <div><img src="/portal_sync.svg" class="spinner" id="connecting-icon" /></div>
+        </div>
+    </div>    
+    <div class="modal" id="failed-window">
+        <div class="wrapper">
+            <span class="message">Failed to connect to <span class="network-name" style="font-weight: bold;">Network</span>. Please re-enter the password.</span>
+            <input type="password" class="error" name="password" placeholder="Password" minlength="8">
+            <a class="button">Try Again</a>
+        </div>
+    </div>    
 </body>
 </html>

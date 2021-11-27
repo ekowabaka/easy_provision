@@ -5,6 +5,22 @@
     <meta charset="UTF-8">
     <title>Connect</title>
     <script type="text/javascript" src="/portal_script.js"></script>
+    <script type="text/javascript">
+    function init() {
+        document.getElementById("refresh-button").addEventListener("click", refresh);
+        
+        document.getElementById("password-window").addEventListener("shown", showPasswordWindow);
+        document.getElementById("failed-window").addEventListener("shown", showPasswordWindow);
+
+        window.addEventListener("resize", resize);
+        apsList = document.getElementById("aps-list");
+        head = document.getElementById("head");
+        foot = document.getElementById("foot");
+        resize();
+        refresh();
+    }
+    window.addEventListener("load", init);        
+    </script>
     <link rel="stylesheet" type="text/css" href="/portal_style.css">
 </head>
 <body>
@@ -30,13 +46,13 @@
         <div class="wrapper">
             <span class="message">Failed to connect to <span class="network-name" style="font-weight: bold;">Network</span>. Please re-enter the password.</span>
             <input type="password" class="error" name="password" placeholder="Password" minlength="8">
-            <a class="button">Connect</a>
+            <a class="button">Try Again</a>
         </div>
     </div>
 
     <div class="modal" id="connecting-window">
         <div class="wrapper" style="text-align: center;">
-            <span class="message">Connecting to <span class="network-name" style="font-weight: bold;">Network</span> network.</span>
+            <span class="message">Connecting to <span class="network-name" style="font-weight: bold;">Network</span>.</span>
             <div><img src="/portal_sync.svg" class="spinner" id="connecting-icon" /></div>
         </div>
     </div>
