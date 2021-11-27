@@ -39,7 +39,7 @@ static void wifi_event_handler(void* arg, esp_event_base_t event_base, int32_t e
         connection_status = CONNECTION_STATUS_CONNECTED;
     } else if (event_id == WIFI_EVENT_STA_DISCONNECTED) {
         ESP_LOGI(TAG, "station disconnected");
-        if(connection_status == CONNECTION_STATUS_CONNECTING) {
+        if(connection_status==CONNECTION_STATUS_CONNECTING) {
             connection_status = CONNECTION_STATUS_FAILED;
         } else {
             connection_status = CONNECTION_STATUS_DISCONNECTED;

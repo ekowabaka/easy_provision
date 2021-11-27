@@ -73,17 +73,17 @@ class MockServer(http.server.BaseHTTPRequestHandler):
             self.send_response(200)
             self.send_header("Content-type", "application/json")
             self.end_headers()
-            status = "connecting"
+            status = 2
             
             if MockServer.num_status_calls == 0:
                 MockServer.num_status_calls += 1
-                status = "connecting"
+                status = 2
             elif MockServer.num_status_calls == 1:
                 MockServer.num_status_calls += 1
-                status = "connecting"
+                status = 2
             elif MockServer.num_status_calls == 2:
                 MockServer.num_status_calls += 1
-                status = "failed"
+                status = 4 # or 3 for connected
             
             self.wfile.write(json.dumps({"status": status}).encode())
 
@@ -114,7 +114,7 @@ class MockServer(http.server.BaseHTTPRequestHandler):
                 self.wfile.write("404".encode())
 
 if __name__ == '__main__':
-    server_address = ('', 8080)
+    server_address = ('0.0.0.0', 8080)
     httpd = http.server.HTTPServer(server_address, MockServer)
     httpd.serve_forever()    
     print("Server started")

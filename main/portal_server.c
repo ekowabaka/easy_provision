@@ -25,8 +25,10 @@ esp_err_t api_status_get_handler(httpd_req_t *req)
     char buffer[128];
 
     httpd_resp_set_type(req, "application/json");
-    sprintf(buffer, "{\"status\":%d}", wifi_get_connection_status());
+    sprintf(buffer, "{\"status\": %d}", wifi_get_connection_status());
     httpd_resp_send(req, buffer, strlen(buffer));
+
+    ESP_LOGI(TAG, "Sending status: %s", buffer);
 
     return ESP_OK;
 }
@@ -81,6 +83,7 @@ esp_err_t redirect_handler(httpd_req_t *req)
  */
 esp_err_t file_get_handler(httpd_req_t *req)
 {
+    ESP_LOGI(TAG, "Attempting to serve file for request %s", req->uri);
     char filename[32];
     strcpy(filename, "/spiffs");
     strcat(filename, strcmp(req->uri, "/") == 0 ? "/portal_index.html" : req->uri);
@@ -137,6 +140,7 @@ esp_err_t api_connect_post_handler(httpd_req_t *req)
         }
         received += ret;
     }
+
     ESP_LOGI(TAG, "Received POST request %s", buf);
     cJSON *root = cJSON_Parse(buf);
     if(root == NULL) {
@@ -146,6 +150,7 @@ esp_err_t api_connect_post_handler(httpd_req_t *req)
         free(buf);
         return ESP_FAIL;
     }
+
     cJSON *ssid = cJSON_GetObjectItemCaseSensitive(root, "ssid");
     cJSON *password = cJSON_GetObjectItemCaseSensitive(root, "password");
     if(!ssid || !password) {
@@ -195,7 +200,7 @@ httpd_handle_t start_webserver(void)
         });
         httpd_register_uri_handler(server, &(httpd_uri_t) {
             .uri = "/api/status",
-            .method = HTTP_POST,
+            .method = HTTP_GET,
             .handler = api_status_get_handler,
             .user_ctx = NULL
         });

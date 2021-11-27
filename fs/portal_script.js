@@ -24,9 +24,9 @@ function pollConnectionStatus() {
     fetch("/api/status")
         .then(response => response.json())
         .then(data => {
-            if(data.status === "connected") {
-                window.location.href = "/portal_connected.html?ssid=" + activeSSID;
-            } else if(data.status === "failed") {
+            if(data.status === 3) {
+                window.location.href = "/portal_connected.html"
+            } else if(data.status === 4) {
                 modal.close();
                 modal.open("#failed-window");
             } else {
@@ -51,7 +51,7 @@ function startConnection(e) {
         body: JSON.stringify(
             {
                 "ssid": activeSSID, 
-                "password": passwordInput !== undefined ?? passwordInput.value | ""
+                "password": passwordInput !== undefined ? passwordInput.value : ""
             })
     })
     .then(response => response.json())
