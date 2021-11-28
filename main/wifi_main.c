@@ -10,7 +10,7 @@
 
 #include "lwip/err.h"
 #include "lwip/sys.h"
-#include "portal_server.h"
+#include "htportal.h"
 #include "captdns.h"
 #include "wifi_main.h"
 
@@ -145,5 +145,5 @@ void app_main()
     init_wifi();
     captdnsInit();
     init_filesystem();
-    run_ui();
+    start_portal();
 }

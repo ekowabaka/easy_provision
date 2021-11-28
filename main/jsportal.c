@@ -2,7 +2,7 @@
 #include <esp_http_server.h>
 #include <dirent.h>
 
-#include "portal_server.h"
+#include "jsportal.h"
 #include "esp_log.h"
 #include "esp_event.h"
 #include "esp_netif.h"
@@ -13,7 +13,7 @@
 
 #include "wifi_main.h"
 
-static const char *TAG = "UI-Server";
+static const char *TAG = "JSPORTAL";
 
 /**
  * @brief Web server handle
@@ -234,7 +234,7 @@ void stop_webserver(httpd_handle_t server)
     httpd_stop(server);
 }
 
-void run_ui()
+void start_portal()
 {
     server = start_webserver();
 }
