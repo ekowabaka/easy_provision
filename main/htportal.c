@@ -1,6 +1,9 @@
 #include "htportal.h"
 #include <esp_http_server.h>
 #include "esp_log.h"
+#include "esp_wifi.h"
+#include "wifi_main.h"
+#include <math.h>
 
 static const char *TAG = "HTPORTAL";
 
@@ -154,6 +157,52 @@ esp_err_t index_get_handler(httpd_req_t *req)
     return ESP_OK;
 }
 
+esp_err_t ap_scan_get_handler(httpd_req_t *req)
+{
+    wifi_ap_record_t ap_info[DEFAULT_SCAN_LIST_SIZE];
+    int ap_count = wifi_scan(ap_info);    
+    char template[512]; 
+
+    FILE * stream = fopen("/spiffs/network.html", "r");
+    if (stream == NULL) {
+        ESP_LOGE(TAG, "Failed to open file %s for reading", "/spiffs/network.html");
+        return ESP_FAIL;
+    }
+    fgets(template, 512, stream) ;
+    fclose(stream);
+
+    stream_page_head(req);
+    render_and_stream_content("/spiffs/scan_head.html", req, NULL, NULL, 0);
+
+    for (int i = 0; (i < DEFAULT_SCAN_LIST_SIZE) && (i < ap_count); i++) {
+        const char * vars[] = {
+            "{{ssid2}}", 
+            "{{ssid1}}", 
+            "{{auth2}}", 
+            "{{auth1}}", 
+            "{{rssi}}"
+        };
+        char rssi_level[3];
+        sprintf(rssi_level, "%d", (int) round(((ap_info[i].rssi + 100.0) / 70.0) * 4.0));
+        char *auth = ap_info[i].authmode == WIFI_AUTH_OPEN ? "open" : "lock";
+        const char * vals[] = {
+            (char *)ap_info[i].ssid, 
+            (char *)ap_info[i].ssid, 
+            auth, auth, 
+            rssi_level
+        };
+        char * buffer = substitute_vars(template, vars, vals, 5);
+
+        httpd_resp_send_chunk(req, buffer, strlen(buffer));
+        free(buffer);
+    }
+
+    stream_page_foot(req);
+    render_and_stream_content("/spiffs/scan_foot.html", req, NULL, NULL, 0);
+    httpd_resp_send_chunk(req, NULL, 0);
+    return ESP_OK;
+}
+
 httpd_handle_t start_webserver(void)
 {
     httpd_handle_t server = NULL;
@@ -169,6 +218,12 @@ httpd_handle_t start_webserver(void)
             .uri = "/",
             .method = HTTP_GET,
             .handler = index_get_handler,
+            .user_ctx = NULL
+        });
+        httpd_register_uri_handler(server, &(httpd_uri_t) {
+            .uri = "/scan",
+            .method = HTTP_GET,
+            .handler = ap_scan_get_handler,
             .user_ctx = NULL
         });
         httpd_register_uri_handler(server, &(httpd_uri_t) {
