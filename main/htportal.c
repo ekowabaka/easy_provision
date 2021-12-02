@@ -12,6 +12,11 @@ static const char *TAG = "HTPORTAL";
  */
 static httpd_handle_t server = NULL;
 
+/**
+ * @brief Stream the contents of a file to the client.
+ * @param filename 
+ * @param req 
+ */
 void stream_file(char * filename, httpd_req_t * req)
 {
     FILE * stream = fopen(filename, "r");
@@ -27,11 +32,19 @@ void stream_file(char * filename, httpd_req_t * req)
     fclose(stream);
 }
 
+/**
+ * @brief Stream the page header to the client.
+ * @param req 
+ */
 void stream_page_head(httpd_req_t * req)
 {
     stream_file("/spiffs/header.html", req);
 }
 
+/**
+ * @brief Stream the page footer to the client.
+ * @param req 
+ */
 void stream_page_foot(httpd_req_t * req)
 {
     stream_file("/spiffs/footer.html", req);
@@ -93,6 +106,13 @@ void render_and_stream_content(char *file, httpd_req_t *req, const char **vars, 
     fclose(stream);
 }
 
+/**
+ * @brief Redirect any unknown requests to the index page.
+ * This is used to force clients to display a captive portal popup.
+ * 
+ * @param req 
+ * @return esp_err_t 
+ */
 esp_err_t redirect_handler(httpd_req_t *req)
 {
     ESP_LOGI(TAG, "Redirecting %s", req->uri);
@@ -157,7 +177,7 @@ esp_err_t index_get_handler(httpd_req_t *req)
     return ESP_OK;
 }
 
-esp_err_t ap_scan_get_handler(httpd_req_t *req)
+esp_err_t scan_get_handler(httpd_req_t *req)
 {
     wifi_ap_record_t ap_info[DEFAULT_SCAN_LIST_SIZE];
     int ap_count = wifi_scan(ap_info);    
@@ -183,7 +203,7 @@ esp_err_t ap_scan_get_handler(httpd_req_t *req)
             "{{rssi}}"
         };
         char rssi_level[3];
-        sprintf(rssi_level, "%d", (int) round(((ap_info[i].rssi + 100.0) / 70.0) * 4.0));
+        sprintf(rssi_level, "%d", (int) floor(((ap_info[i].rssi + 100.0) / 70.0) * 4.0));
         char *auth = ap_info[i].authmode == WIFI_AUTH_OPEN ? "open" : "lock";
         const char * vals[] = {
             (char *)ap_info[i].ssid, 
@@ -201,6 +221,57 @@ esp_err_t ap_scan_get_handler(httpd_req_t *req)
     render_and_stream_content("/spiffs/scan_foot.html", req, NULL, NULL, 0);
     httpd_resp_send_chunk(req, NULL, 0);
     return ESP_OK;
+}
+
+esp_err_t connect_lock_get_handler(httpd_req_t *req)
+{
+    ESP_LOGI(TAG, "Attempting to connect to %s", req->uri);
+    size_t query_len = httpd_req_get_url_query_len(req);
+    if (query_len == 0) {
+        //@todo make this print some nice message.
+        return ESP_FAIL;
+    }
+    
+    char * query_str = calloc(1, query_len + 1);
+    httpd_req_get_url_query_str(req, query_str, query_len + 1);
+    
+    char ssid[32];
+    httpd_query_key_value(query_str, "ssid", ssid, sizeof(ssid));
+    stream_page_head(req);
+
+    const char * vars[] = {"%%ssid1%%", "%%ssid2%%", "%%ssid3%%"};
+    const char * values[] = {ssid, ssid, ssid};
+    render_and_stream_content("/spiffs/password.html", req, vars, values, 3);
+
+    stream_page_foot(req);
+    httpd_resp_send_chunk(req, NULL, 0);
+
+    free(query_str);
+    return ESP_OK;
+}
+
+esp_err_t connect_post_handler(httpd_req_t *req)
+{
+    size_t buf_len = req->content_len + 1;
+    char * buf = malloc(buf_len);
+    size_t received = 0;
+    char * failure = "false";
+    char * success = "true";
+
+    // Download all the json content that was sent in post
+    while(received < req->content_len) {
+        size_t ret = httpd_req_recv(req, buf + received, buf_len - received);
+        if(ret <= 0 && ret == HTTPD_SOCK_ERR_TIMEOUT) {
+            httpd_resp_send_408(req);
+            httpd_resp_send(req, failure, strlen(failure));
+            free(buf);
+            return ESP_FAIL;
+        }
+        received += ret;
+    }
+
+    ESP_LOGI(TAG, "Received POST request %s", buf);
+    
 }
 
 httpd_handle_t start_webserver(void)
@@ -223,7 +294,19 @@ httpd_handle_t start_webserver(void)
         httpd_register_uri_handler(server, &(httpd_uri_t) {
             .uri = "/scan",
             .method = HTTP_GET,
-            .handler = ap_scan_get_handler,
+            .handler = scan_get_handler,
+            .user_ctx = NULL
+        });
+        httpd_register_uri_handler(server, &(httpd_uri_t) {
+            .uri = "/connect",
+            .method = HTTP_POST,
+            .handler = connect_post_handler,
+            .user_ctx = NULL
+        });
+        httpd_register_uri_handler(server, &(httpd_uri_t) {
+            .uri = "/connect_lock",
+            .method = HTTP_GET,
+            .handler = connect_lock_get_handler,
             .user_ctx = NULL
         });
         httpd_register_uri_handler(server, &(httpd_uri_t) {
