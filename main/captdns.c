@@ -93,6 +93,7 @@ typedef struct __attribute__((packed))
 #define QCLASS_URI 256
 
 static const char *TAG = "CAPT-DNS";
+static bool active = true;
 
 
 //Function to put unaligned 16-bit network values
@@ -298,10 +299,8 @@ static void captdnsTask(void *pvParameters)
 	uint32_t ret;
 	struct sockaddr_in from;
 	socklen_t fromlen;
-	//struct tcpip_adapter_ip_info_t ipconfig;
 	char udp_msg[DNS_LEN];
 
-	//memset(&ipconfig, 0, sizeof(ipconfig));
 	memset(&server_addr, 0, sizeof(server_addr));
 	server_addr.sin_family = AF_INET;
 	server_addr.sin_addr.s_addr = INADDR_ANY;
@@ -330,17 +329,24 @@ static void captdnsTask(void *pvParameters)
 
 	ESP_LOGI(TAG, "CaptDNS inited.");
 
-	while (1)
+	while (active)
 	{
 		memset(&from, 0, sizeof(from));
 		fromlen = sizeof(struct sockaddr_in);
 		ret = recvfrom(sockFd, (uint8_t *)udp_msg, DNS_LEN, 0, (struct sockaddr *)&from, (socklen_t *)&fromlen);
-		if (ret > 0)
+		if (ret > 0){
 			captdnsRecv(&from, udp_msg, ret);
+		}
 	}
 
 	close(sockFd);
 	vTaskDelete(NULL);
+}
+
+void endCaptDnsTask(void)
+{
+	ESP_LOGI(TAG, "Ending CaptDNS task.");
+	active = false;
 }
 
 void captdnsInit(void)

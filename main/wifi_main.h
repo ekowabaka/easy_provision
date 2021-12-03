@@ -12,5 +12,6 @@
 int wifi_get_connection_status();
 esp_err_t wifi_scan(wifi_ap_record_t *ap_info);
 esp_err_t wifi_start_station(char * ssid, char * password);
+void wifi_end_ap();
 
 #endif

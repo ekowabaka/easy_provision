@@ -105,6 +105,14 @@ esp_err_t wifi_start_station(char * ssid, char * password)
     return esp_wifi_connect();
 }
 
+void wifi_end_ap()
+{
+    ESP_LOGI(TAG, "Disabling AP");
+    esp_wifi_set_mode(WIFI_MODE_STA);
+    esp_wifi_start();
+    endCaptDnsTask();
+}
+
 void init_filesystem() {
     ESP_LOGI(TAG, "Initializing SPIFFS");
     

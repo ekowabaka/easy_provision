@@ -255,23 +255,51 @@ esp_err_t connect_post_handler(httpd_req_t *req)
     size_t buf_len = req->content_len + 1;
     char * buf = malloc(buf_len);
     size_t received = 0;
-    char * failure = "false";
-    char * success = "true";
 
-    // Download all the json content that was sent in post
+    // Download all the HTTP content
     while(received < req->content_len) {
         size_t ret = httpd_req_recv(req, buf + received, buf_len - received);
         if(ret <= 0 && ret == HTTPD_SOCK_ERR_TIMEOUT) {
             httpd_resp_send_408(req);
-            httpd_resp_send(req, failure, strlen(failure));
             free(buf);
             return ESP_FAIL;
         }
         received += ret;
     }
 
-    ESP_LOGI(TAG, "Received POST request %s", buf);
-    
+    char ssid[32];
+    char password[64];
+
+    httpd_query_key_value(buf, "ssid", ssid, sizeof(ssid));
+    httpd_query_key_value(buf, "password", password, sizeof(password));
+
+    ESP_LOGI(TAG, "Attempting to connect to %s", ssid);
+    if(wifi_start_station(ssid, password) == ESP_OK) {
+        int connection_status = wifi_get_connection_status();
+        while(connection_status == CONNECTION_STATUS_CONNECTING || connection_status == CONNECTION_STATUS_WAITING) {
+            vTaskDelay(100 / portTICK_PERIOD_MS);
+            connection_status = wifi_get_connection_status();
+        }
+    }
+
+    if (wifi_get_connection_status() == CONNECTION_STATUS_CONNECTED) {
+        const char * vars[] = {"{{ssid}}"};
+        const char * values[] = {ssid};
+        stream_page_head(req);
+        render_and_stream_content("/spiffs/connected.html", req, vars, values, 1);
+        wifi_end_ap();
+        stream_page_foot(req);
+    } else {
+        char url[64];
+        sprintf(url, "/connect_lock?ssid=%s", ssid);
+        httpd_resp_set_status(req, "303 See Other");
+        httpd_resp_set_hdr(req, "Location", url);
+    }
+
+    httpd_resp_send_chunk(req, NULL, 0);
+
+    free(buf); 
+    return ESP_OK;
 }
 
 httpd_handle_t start_webserver(void)
