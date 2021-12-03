@@ -55,6 +55,7 @@ footer {
     box-shadow: inset 1px 1px 3px rgba(0, 0, 0, 0.1);
     border-radius: 5px;
     outline: none;
+    margin-bottom: 10px;
 }
 
 .wrapper input.error {

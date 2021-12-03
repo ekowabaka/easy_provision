@@ -239,9 +239,12 @@ esp_err_t connect_lock_get_handler(httpd_req_t *req)
     httpd_query_key_value(query_str, "ssid", ssid, sizeof(ssid));
     stream_page_head(req);
 
-    const char * vars[] = {"%%ssid1%%", "%%ssid2%%", "%%ssid3%%"};
-    const char * values[] = {ssid, ssid, ssid};
-    render_and_stream_content("/spiffs/password.html", req, vars, values, 3);
+    char pw[3];
+    esp_err_t key_found = httpd_query_key_value(query_str, "e", pw, 3);
+
+    const char * vars[] = {"%%ssid1%%", "%%ssid2%%", "%%ssid3%%", "%%error%%"};
+    const char * values[] = {ssid, ssid, ssid, key_found == ESP_OK ? "Failed to connect. Please try again.": ""};
+    render_and_stream_content("/spiffs/password.html", req, vars, values, 4);
 
     stream_page_foot(req);
     httpd_resp_send_chunk(req, NULL, 0);
@@ -291,13 +294,24 @@ esp_err_t connect_post_handler(httpd_req_t *req)
         stream_page_foot(req);
     } else {
         char url[64];
-        sprintf(url, "/connect_lock?ssid=%s", ssid);
+        size_t query_len = httpd_req_get_url_query_len(req);
+        char * query_str = calloc(1, query_len + 1);
+        char redirect[16];
+
+        httpd_req_get_url_query_str(req, query_str, query_len + 1);
+        esp_err_t error = httpd_query_key_value(query_str, "redirect", redirect, sizeof(redirect));
+        if (error == ESP_ERR_NOT_FOUND) {
+            sprintf(url, "./?ssid=%s&e=pw", ssid);
+        } else {
+            sprintf(url, "/%s?ssid=%s&e=pw", redirect, ssid);
+        }
         httpd_resp_set_status(req, "303 See Other");
         httpd_resp_set_hdr(req, "Location", url);
+
+        free(query_str);
     }
 
     httpd_resp_send_chunk(req, NULL, 0);
-
     free(buf); 
     return ESP_OK;
 }
