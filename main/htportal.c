@@ -165,6 +165,53 @@ esp_err_t file_get_handler(httpd_req_t *req)
     return ESP_OK;
 } 
 
+/**
+ * @brief Make a connection.
+ * 
+ * @param req 
+ * @param ssid 
+ * @param password 
+ */
+void make_connection(httpd_req_t *req, char * ssid, char * password)
+{
+    ESP_LOGI(TAG, "Attempting to connect to %s", ssid);
+    if(wifi_start_station(ssid, password) == ESP_OK) {
+        int connection_status = wifi_get_connection_status();
+        while(connection_status == CONNECTION_STATUS_CONNECTING || connection_status == CONNECTION_STATUS_WAITING) {
+            vTaskDelay(100 / portTICK_PERIOD_MS);
+            connection_status = wifi_get_connection_status();
+        }
+    }
+
+    if (wifi_get_connection_status() == CONNECTION_STATUS_CONNECTED) {
+        const char * vars[] = {"{{ssid}}"};
+        const char * values[] = {ssid};
+        stream_page_head(req);
+        render_and_stream_content("/spiffs/connected.html", req, vars, values, 1);
+        wifi_end_ap();
+        stream_page_foot(req);
+    } else {
+        char url[64];
+        size_t query_len = httpd_req_get_url_query_len(req);
+        char * query_str = calloc(1, query_len + 1);
+        char redirect[16];
+
+        httpd_req_get_url_query_str(req, query_str, query_len + 1);
+        esp_err_t error = httpd_query_key_value(query_str, "redirect", redirect, sizeof(redirect));
+        if (error == ESP_ERR_NOT_FOUND) {
+            sprintf(url, "./?ssid=%s&e=pw", ssid);
+        } else {
+            sprintf(url, "/%s?ssid=%s&e=pw", redirect, ssid);
+        }
+        httpd_resp_set_status(req, "303 See Other");
+        httpd_resp_set_hdr(req, "Location", url);
+
+        free(query_str);
+    }
+
+    httpd_resp_send_chunk(req, NULL, 0);
+} 
+
 esp_err_t index_get_handler(httpd_req_t *req)
 {
     const char * vars[] = {"<!--app_name-->"};
@@ -174,6 +221,25 @@ esp_err_t index_get_handler(httpd_req_t *req)
     render_and_stream_content("/spiffs/index.html", req, vars, values, 1);
     stream_page_foot(req);
     httpd_resp_send_chunk(req, NULL, 0);
+    return ESP_OK;
+}
+
+esp_err_t manual_get_handler(httpd_req_t *req)
+{
+    size_t query_len = httpd_req_get_url_query_len(req);
+    char * query_str = calloc(1, query_len + 1);
+    char pw[3];
+    esp_err_t key_found = httpd_query_key_value(query_str, "e", pw, 3);
+
+    const char * vars[] = {"%%error%%"};
+    const char * values[] = {key_found == ESP_OK ? "Failed to connect. Please try again.": ""};
+
+    stream_page_head(req);
+    render_and_stream_content("/spiffs/manual.html", req, vars, values, 1);
+    stream_page_foot(req);
+    httpd_resp_send_chunk(req, NULL, 0);
+
+    free(query_str);
     return ESP_OK;
 }
 
@@ -223,6 +289,21 @@ esp_err_t scan_get_handler(httpd_req_t *req)
     return ESP_OK;
 }
 
+esp_err_t connect_open_get_handler(httpd_req_t *req)
+{
+    size_t query_len = httpd_req_get_url_query_len(req);
+    char * query_str = calloc(1, query_len + 1);
+    httpd_req_get_url_query_str(req, query_str, query_len + 1);    
+    char ssid[33];
+    httpd_query_key_value(query_str, "ssid", ssid, sizeof(ssid));
+
+    ESP_LOGI(TAG, "Connecting to %s", ssid);
+    make_connection(req, ssid, "");
+
+    free(query_str);
+    return ESP_OK;
+}
+
 esp_err_t connect_lock_get_handler(httpd_req_t *req)
 {
     ESP_LOGI(TAG, "Attempting to connect to %s", req->uri);
@@ -237,6 +318,7 @@ esp_err_t connect_lock_get_handler(httpd_req_t *req)
     
     char ssid[32];
     httpd_query_key_value(query_str, "ssid", ssid, sizeof(ssid));
+
     stream_page_head(req);
 
     char pw[3];
@@ -276,42 +358,7 @@ esp_err_t connect_post_handler(httpd_req_t *req)
     httpd_query_key_value(buf, "ssid", ssid, sizeof(ssid));
     httpd_query_key_value(buf, "password", password, sizeof(password));
 
-    ESP_LOGI(TAG, "Attempting to connect to %s", ssid);
-    if(wifi_start_station(ssid, password) == ESP_OK) {
-        int connection_status = wifi_get_connection_status();
-        while(connection_status == CONNECTION_STATUS_CONNECTING || connection_status == CONNECTION_STATUS_WAITING) {
-            vTaskDelay(100 / portTICK_PERIOD_MS);
-            connection_status = wifi_get_connection_status();
-        }
-    }
-
-    if (wifi_get_connection_status() == CONNECTION_STATUS_CONNECTED) {
-        const char * vars[] = {"{{ssid}}"};
-        const char * values[] = {ssid};
-        stream_page_head(req);
-        render_and_stream_content("/spiffs/connected.html", req, vars, values, 1);
-        wifi_end_ap();
-        stream_page_foot(req);
-    } else {
-        char url[64];
-        size_t query_len = httpd_req_get_url_query_len(req);
-        char * query_str = calloc(1, query_len + 1);
-        char redirect[16];
-
-        httpd_req_get_url_query_str(req, query_str, query_len + 1);
-        esp_err_t error = httpd_query_key_value(query_str, "redirect", redirect, sizeof(redirect));
-        if (error == ESP_ERR_NOT_FOUND) {
-            sprintf(url, "./?ssid=%s&e=pw", ssid);
-        } else {
-            sprintf(url, "/%s?ssid=%s&e=pw", redirect, ssid);
-        }
-        httpd_resp_set_status(req, "303 See Other");
-        httpd_resp_set_hdr(req, "Location", url);
-
-        free(query_str);
-    }
-
-    httpd_resp_send_chunk(req, NULL, 0);
+    make_connection(req, ssid, password);
     free(buf); 
     return ESP_OK;
 }
@@ -340,6 +387,12 @@ httpd_handle_t start_webserver(void)
             .user_ctx = NULL
         });
         httpd_register_uri_handler(server, &(httpd_uri_t) {
+            .uri = "/manual",
+            .method = HTTP_GET,
+            .handler = manual_get_handler,
+            .user_ctx = NULL
+        });
+        httpd_register_uri_handler(server, &(httpd_uri_t) {
             .uri = "/connect",
             .method = HTTP_POST,
             .handler = connect_post_handler,
@@ -349,6 +402,12 @@ httpd_handle_t start_webserver(void)
             .uri = "/connect_lock",
             .method = HTTP_GET,
             .handler = connect_lock_get_handler,
+            .user_ctx = NULL
+        });
+        httpd_register_uri_handler(server, &(httpd_uri_t) {
+            .uri = "/connect_open",
+            .method = HTTP_GET,
+            .handler = connect_open_get_handler,
             .user_ctx = NULL
         });
         httpd_register_uri_handler(server, &(httpd_uri_t) {
