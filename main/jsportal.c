@@ -163,7 +163,7 @@ esp_err_t api_connect_post_handler(httpd_req_t *req)
     if(wifi_start_station(ssid->valuestring, password->valuestring) == ESP_OK) {
         httpd_resp_set_status(req, "200 OK");
         httpd_resp_send(req, success, strlen(success));
-        wifi_end_ap();
+        stop_provisioning();
     } else {
         httpd_resp_set_status(req, "500 Internal Server Error");
         httpd_resp_send(req, failure, strlen(failure));

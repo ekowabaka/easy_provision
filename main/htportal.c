@@ -188,7 +188,7 @@ void make_connection(httpd_req_t *req, char * ssid, char * password)
         const char * values[] = {ssid};
         stream_page_head(req);
         render_and_stream_content("/spiffs/connected.html", req, vars, values, 1);
-        wifi_end_ap();
+        stop_provisioning();
         stream_page_foot(req);
     } else {
         char url[64];

@@ -16,6 +16,7 @@
 
 static const char *TAG = "Main";
 static int connection_status = 0;
+static int state = 0;
 static wifi_config_t wifi_config;
 
 /**
@@ -37,8 +38,15 @@ static void wifi_event_handler(void* arg, esp_event_base_t event_base, int32_t e
     } else if (event_id == WIFI_EVENT_STA_CONNECTED) {
         ESP_LOGI(TAG, "station connected");
         connection_status = CONNECTION_STATUS_CONNECTED;
+        if(state == STATE_CONNECTING) {
+            state = STATE_CONNECTED;
+        }
     } else if (event_id == WIFI_EVENT_STA_DISCONNECTED) {
         ESP_LOGI(TAG, "station disconnected");
+        if (state == STATE_CONNECTING) {
+            state = STATE_SETTING_UP;
+            start_provisioning();
+        }
         if(connection_status==CONNECTION_STATUS_CONNECTING) {
             connection_status = CONNECTION_STATUS_FAILED;
         } else {
@@ -78,53 +86,27 @@ void init_wifi()
 
     wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
     ESP_ERROR_CHECK(esp_wifi_init(&cfg));
-
     ESP_ERROR_CHECK(esp_event_handler_register(WIFI_EVENT, ESP_EVENT_ANY_ID, &wifi_event_handler, NULL));
     ESP_ERROR_CHECK(esp_event_handler_register(IP_EVENT, IP_EVENT_STA_GOT_IP, &on_got_ip, NULL));    
-
-    wifi_config.ap.ssid_len = strlen("LED-Matrix-AP");
-    wifi_config.ap.max_connection = 2;
-    wifi_config.ap.authmode = WIFI_AUTH_OPEN;
-    wifi_config.ap.password[0] = '\0';
-    strncpy((char *)&wifi_config.sta.ssid, "LED-Matrix-AP", sizeof(wifi_config.sta.ssid));
-
-    ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_APSTA));
-    ESP_ERROR_CHECK(esp_wifi_set_config(ESP_IF_WIFI_AP, &wifi_config));
-    ESP_ERROR_CHECK(esp_wifi_start());
-}
-
-esp_err_t wifi_start_station(char * ssid, char * password)
-{
-    strncpy((char *)&wifi_config.sta.ssid, ssid, sizeof(wifi_config.sta.ssid));
-    strncpy((char *)&wifi_config.sta.password, password, sizeof(wifi_config.sta.password));
-    connection_status = CONNECTION_STATUS_CONNECTING;
-
-    ESP_ERROR_CHECK(esp_wifi_set_config(ESP_IF_WIFI_STA, &wifi_config));
-    ESP_LOGI(TAG, "Connecting to WiFi with ssid:%s, password:%s", wifi_config.sta.ssid, wifi_config.sta.password);
-    esp_wifi_start();
-    return esp_wifi_connect();
-}
-
-void wifi_end_ap()
-{
-    ESP_LOGI(TAG, "Disabling AP");
+    
+    // Read persisted credentials and attempt to connect
+    ESP_ERROR_CHECK(esp_wifi_get_config(ESP_IF_WIFI_STA, &wifi_config));
+    ESP_LOGI(TAG, "Connecting to %s", wifi_config.sta.ssid);
     esp_wifi_set_mode(WIFI_MODE_STA);
     esp_wifi_start();
-    endCaptDnsTask();
+    esp_wifi_connect();
 }
 
 void init_filesystem() {
     ESP_LOGI(TAG, "Initializing SPIFFS");
     
     esp_vfs_spiffs_conf_t conf = {
-      .base_path = "/spiffs",
-      .partition_label = NULL,
-      .max_files = 10,
-      .format_if_mount_failed = false
+        .base_path = "/spiffs",
+        .partition_label = NULL,
+        .max_files = 10,
+        .format_if_mount_failed = false
     };
     
-    // Use settings defined above to initialize and mount SPIFFS filesystem.
-    // Note: esp_vfs_spiffs_register is an all-in-one convenience function.
     esp_err_t ret = esp_vfs_spiffs_register(&conf);
 
     if (ret != ESP_OK) {
@@ -147,11 +129,48 @@ void init_filesystem() {
     }    
 }
 
-void app_main()
+void start_provisioning()
 {
-    ESP_ERROR_CHECK(nvs_flash_init());
-    init_wifi();
+    esp_wifi_stop();
+
+    wifi_config.ap.ssid_len = strlen("LED-Matrix-AP");
+    wifi_config.ap.max_connection = 2;
+    wifi_config.ap.authmode = WIFI_AUTH_OPEN;
+    wifi_config.ap.password[0] = '\0';
+    strncpy((char *)&wifi_config.sta.ssid, "LED-Matrix-AP", sizeof(wifi_config.sta.ssid));
+
+    ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_APSTA));
+    ESP_ERROR_CHECK(esp_wifi_set_config(ESP_IF_WIFI_AP, &wifi_config));
+    ESP_ERROR_CHECK(esp_wifi_start());
+
     captdnsInit();
     init_filesystem();
     start_portal();
+}
+
+esp_err_t wifi_start_station(char * ssid, char * password)
+{
+    strncpy((char *)&wifi_config.sta.ssid, ssid, sizeof(wifi_config.sta.ssid));
+    strncpy((char *)&wifi_config.sta.password, password, sizeof(wifi_config.sta.password));
+    connection_status = CONNECTION_STATUS_CONNECTING;
+
+    ESP_ERROR_CHECK(esp_wifi_set_config(ESP_IF_WIFI_STA, &wifi_config));
+    ESP_LOGI(TAG, "Connecting to WiFi with ssid:%s, password:%s", wifi_config.sta.ssid, wifi_config.sta.password);
+    esp_wifi_start();
+    return esp_wifi_connect();
+}
+
+void stop_provisioning()
+{
+    ESP_LOGI(TAG, "Disabling AP");
+    esp_wifi_set_mode(WIFI_MODE_STA);
+    esp_wifi_start();
+    endCaptDnsTask();
+}
+
+void app_main()
+{
+    sleep(15);
+    nvs_flash_init();
+    init_wifi();
 }
