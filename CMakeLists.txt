@@ -1,7 +1,9 @@
-# The following lines of boilerplate have to be in your project's
-# CMakeLists in this exact order for cmake to work correctly
-cmake_minimum_required(VERSION 3.5)
+#idf_component_register(SRCS "wifi_main.c" "htportal.c" "captdns.c" INCLUDE_DIRS ".")
 
-include($ENV{IDF_PATH}/tools/cmake/project.cmake)
-project(ledmatrix)
+idf_component_register(SRCS "wifi_main.c"
+                            "htportal.c"
+                            "captdns.c"
+                    INCLUDE_DIRS "include"
+                    PRIV_INCLUDE_DIRS "private"
+                    REQUIRES log tcpip_adapter esp_http_server esp_event spiffs)
 

@@ -2,7 +2,7 @@
 #include <esp_http_server.h>
 #include <dirent.h>
 
-#include "jsportal.h"
+#include "private/jsportal.h"
 #include "esp_log.h"
 #include "esp_event.h"
 #include "esp_netif.h"

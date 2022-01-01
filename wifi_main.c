@@ -10,8 +10,8 @@
 
 #include "lwip/err.h"
 #include "lwip/sys.h"
-#include "htportal.h"
-#include "captdns.h"
+#include "private/htportal.h"
+#include "private/captdns.h"
 #include "wifi_main.h"
 
 static const char *TAG = "Main";
@@ -170,7 +170,8 @@ void stop_provisioning()
 
 void app_main()
 {
-    sleep(15);
+    sleep(60);
+    ESP_LOGI(TAG, "Booting up ...");
     nvs_flash_init();
     init_wifi();
 }
