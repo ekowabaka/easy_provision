@@ -12,7 +12,7 @@
 #include "lwip/sys.h"
 #include "private/htportal.h"
 #include "private/captdns.h"
-#include "wifi_main.h"
+#include "easy_provision.h"
 
 static const char *TAG = "Main";
 static int connection_status = 0;
@@ -55,11 +55,11 @@ static void wifi_event_handler(void* arg, esp_event_base_t event_base, int32_t e
     }
 }
 
-static void on_got_ip(void *arg, esp_event_base_t event_base, int32_t event_id, void *event_data)
-{
-    ip_event_got_ip_t *event = (ip_event_got_ip_t *)event_data;
-    ESP_LOGI(TAG, "got ip:%s", ip4addr_ntoa(&event->ip_info.ip));
-}
+// static void on_got_ip(void *arg, esp_event_base_t event_base, int32_t event_id, void *event_data)
+// {
+//     ip_event_got_ip_t *event = (ip_event_got_ip_t *)event_data;
+//     ESP_LOGI(TAG, "got ip:%s", ip4addr_ntoa(&event->ip_info.ip));
+// }
 
 int wifi_get_connection_status()
 {
@@ -87,7 +87,7 @@ void init_wifi()
     wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
     ESP_ERROR_CHECK(esp_wifi_init(&cfg));
     ESP_ERROR_CHECK(esp_event_handler_register(WIFI_EVENT, ESP_EVENT_ANY_ID, &wifi_event_handler, NULL));
-    ESP_ERROR_CHECK(esp_event_handler_register(IP_EVENT, IP_EVENT_STA_GOT_IP, &on_got_ip, NULL));    
+    // ESP_ERROR_CHECK(esp_event_handler_register(IP_EVENT, IP_EVENT_STA_GOT_IP, &on_got_ip, NULL));    
     
     // Read persisted credentials and attempt to connect
     ESP_ERROR_CHECK(esp_wifi_get_config(ESP_IF_WIFI_STA, &wifi_config));
