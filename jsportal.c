@@ -10,7 +10,7 @@
 
 #include "cJSON.h"
 
-#include "wifi_main.h"
+#include "easy_provision.h"
 
 static const char *TAG = "JSPORTAL";
 

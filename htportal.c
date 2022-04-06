@@ -2,7 +2,7 @@
 #include <esp_http_server.h>
 #include "esp_log.h"
 #include "esp_wifi.h"
-#include "wifi_main.h"
+#include "easy_provision.h"
 #include <math.h>
 
 static const char *TAG = "HTPORTAL";
