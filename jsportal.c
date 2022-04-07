@@ -10,7 +10,7 @@
 
 #include "cJSON.h"
 
-#include "easy_provision.h"
+#include "private/internal.h"
 
 static const char *TAG = "JSPORTAL";
 

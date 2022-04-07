@@ -1,22 +1,17 @@
-#ifndef WIFI_H
-#define WIFI_H
+#ifndef EASY_PROVISION_H
+#define EASY_PROVISION_H
 
-#define CONNECTION_STATUS_DISCONNECTED  0
-#define CONNECTION_STATUS_WAITING       1
-#define CONNECTION_STATUS_CONNECTING    2
-#define CONNECTION_STATUS_CONNECTED     3
-#define CONNECTION_STATUS_FAILED        4
+typedef struct {
+    char ssid[32];
+    char password[64];
+    char bssid[18];
+    int channel;
+    int authmode;
+    int rssi;
+} ep_config_t;
 
-#define STATE_CONNECTING             0
-#define STATE_SETTING_UP             1
-#define STATE_CONNECTED              2
-
-#define DEFAULT_SCAN_LIST_SIZE          16
-
-int wifi_get_connection_status();
-esp_err_t wifi_scan(wifi_ap_record_t *ap_info);
-esp_err_t wifi_start_station(char * ssid, char * password);
-void stop_provisioning();
-void start_provisioning();
+esp_err_t ep_start(ep_config_t *config);
+esp_err_t ep_reset();
+esp_err_t ep_stop();
 
 #endif

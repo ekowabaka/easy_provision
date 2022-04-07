@@ -10,8 +10,18 @@
 
 #include "lwip/err.h"
 #include "lwip/sys.h"
+
+#ifdef CONFIG_EASY_PROVISION_HTPORTAL
 #include "private/htportal.h"
+#endif
+
+#ifdef CONFIG_EASY_PROVISION_JSPORTAL
+#include "private/jsportal.h"
+#endif
+
+
 #include "private/captdns.h"
+#include "private/internal.h"
 #include "easy_provision.h"
 
 static const char *TAG = "Main";
@@ -20,7 +30,7 @@ static int state = 0;
 static wifi_config_t wifi_config;
 
 /**
- * @brief Update the status of the different wifi connections.
+ * @brief Receive and handle events on the statuses of the different wifi connections.
  * 
  * @param arg 
  * @param event_base 
@@ -55,11 +65,22 @@ static void wifi_event_handler(void* arg, esp_event_base_t event_base, int32_t e
     }
 }
 
+/**
+ * @brief Return the wifi connection status.
+ * 
+ * @return int 
+ */
 int wifi_get_connection_status()
 {
     return connection_status;
 }
 
+/**
+ * @brief Scan and return the list of available wifi networks.
+ * 
+ * @param ap_info 
+ * @return int 
+ */
 int wifi_scan(wifi_ap_record_t *ap_info)
 {
     uint16_t number = DEFAULT_SCAN_LIST_SIZE;
@@ -73,6 +94,15 @@ int wifi_scan(wifi_ap_record_t *ap_info)
     return ap_count;
 }
 
+/**
+ * @brief Initialize the wifi adapter.
+ * 
+ * This function initially attempts to read the wifi credentials from flash memory. If it finds any, it attempts to 
+ * connect to the wifi network. If it fails, it starts the portal. If it succeeds, it establishes a connection to the
+ * WiFi network and returns control to the main application. In the case where there are no credentials stored in flash
+ * memory, it starts the portal.
+ * 
+ */
 void init_wifi()
 {
     tcpip_adapter_init();
@@ -90,37 +120,6 @@ void init_wifi()
     esp_wifi_connect();
 }
 
-void init_filesystem() {
-    ESP_LOGI(TAG, "Initializing SPIFFS");
-    
-    esp_vfs_spiffs_conf_t conf = {
-        .base_path = "/spiffs",
-        .partition_label = NULL,
-        .max_files = 10,
-        .format_if_mount_failed = false
-    };
-    
-    esp_err_t ret = esp_vfs_spiffs_register(&conf);
-
-    if (ret != ESP_OK) {
-        if (ret == ESP_FAIL) {
-            ESP_LOGE(TAG, "Failed to mount or format filesystem");
-        } else if (ret == ESP_ERR_NOT_FOUND) {
-            ESP_LOGE(TAG, "Failed to find SPIFFS partition");
-        } else {
-            ESP_LOGE(TAG, "Failed to initialize SPIFFS (%s)", esp_err_to_name(ret));
-        }
-        return;
-    }
-    
-    size_t total = 0, used = 0;
-    ret = esp_spiffs_info(NULL, &total, &used);
-    if (ret != ESP_OK) {
-        ESP_LOGE(TAG, "Failed to get SPIFFS partition information (%s)", esp_err_to_name(ret));
-    } else {
-        ESP_LOGI(TAG, "Partition size: total: %d, used: %d", total, used);
-    }    
-}
 
 void start_provisioning()
 {
@@ -137,7 +136,6 @@ void start_provisioning()
     ESP_ERROR_CHECK(esp_wifi_start());
 
     captdnsInit();
-    init_filesystem();
     start_portal();
 }
 
@@ -161,10 +159,11 @@ void stop_provisioning()
     endCaptDnsTask();
 }
 
-void app_main()
+esp_err_t ep_start(ep_config_t * config)
 {
-    sleep(60);
-    ESP_LOGI(TAG, "Booting up ...");
+    ESP_LOGI(TAG, "Starting WIFI ...");
     nvs_flash_init();
     init_wifi();
+
+    return ESP_OK;
 }

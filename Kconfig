@@ -1,12 +1,12 @@
 menu "Easy Provision"
     choice WIFI_PROVISIONING_PORTAL
         prompt "Portal Type"
-        default WIFI_PROVISIONING_HTPORTAL
+        default EASY_PROVISION_HTPORTAL
         help
             Select the type of portal to use during provisioning.
-        config WIFI_PROVISIONING_JSPORTAL
+        config EASY_PROVISION_JSPORTAL
             bool "Use Javascripts"
-        config WIFI_PROVISIONING_HTPORTAL
+        config EASY_PROVISION_HTPORTAL
             bool "Use HTML/CSS Only"
     endchoice
 endmenu
