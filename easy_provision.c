@@ -159,7 +159,7 @@ void stop_provisioning()
     endCaptDnsTask();
 }
 
-esp_err_t ep_start(ep_config_t * config)
+esp_err_t easy_provision_start(easy_provision_config_t * config)
 {
     ESP_LOGI(TAG, "Starting WIFI ...");
     nvs_flash_init();
