@@ -7,30 +7,54 @@
 
 static const char *TAG = "HTPORTAL";
 
+
+/**
+ * Content strings for the various pages
+ */
+extern const uint8_t index_html_start[] asm("_binary_index_html_start");
+extern const uint8_t index_html_end[] asm("_binary_index_html_end");
+extern const uint8_t connected_html_start[] asm("_binary_connected_html_start");
+extern const uint8_t connected_html_end[] asm("_binary_connected_html_end");
+extern const uint8_t footer_html_start[] asm("_binary_footer_html_start");
+extern const uint8_t footer_html_end[] asm("_binary_footer_html_end");
+extern const uint8_t header_html_start[] asm("_binary_header_html_start");
+extern const uint8_t header_html_end[] asm("_binary_header_html_end");
+extern const uint8_t manual_html_start[] asm("_binary_manual_html_start");
+extern const uint8_t manual_html_end[] asm("_binary_manual_html_end");
+extern const uint8_t network_html_start[] asm("_binary_network_html_start");
+extern const uint8_t network_html_end[] asm("_binary_network_html_end");
+extern const uint8_t password_html_start[] asm("_binary_password_html_start");
+extern const uint8_t password_html_end[] asm("_binary_password_html_end");
+
 /**
  * @brief Web server handle
  */
 static httpd_handle_t server = NULL;
 
-/**
- * @brief Stream the contents of a file to the client.
- * @param filename 
- * @param req 
- */
-void stream_file(char * filename, httpd_req_t * req)
-{
-    FILE * stream = fopen(filename, "r");
-    if (stream == NULL) {
-        ESP_LOGE(TAG, "Failed to open file %s for reading", filename);
-        return;
-    }
-    char buffer[100] = {0};
-    while(!feof(stream)) {
-        size_t len = fread(buffer, 1, 100, stream);
-        httpd_resp_send_chunk(req, buffer, len);
-    }
-    fclose(stream);
-}
+// /**
+//  * @brief Stream the contents of a file to the client.
+//  * @param filename 
+//  * @param req 
+//  */
+// void stream_file(char * filename, httpd_req_t * req)
+// {
+//     FILE * stream = fopen(filename, "r");
+//     if (stream == NULL) {
+//         ESP_LOGE(TAG, "Failed to open file %s for reading", filename);
+//         return;
+//     }
+//     char buffer[100] = {0};
+//     while(!feof(stream)) {
+//         size_t len = fread(buffer, 1, 100, stream);
+//         httpd_resp_send_chunk(req, buffer, len);
+//     }
+//     fclose(stream);
+// }
+
+// void stream_content(const uint8_t * content, size_t len, httpd_req_t * req)
+// {
+//     httpd_resp_send_chunk(req, content, len);
+// }
 
 /**
  * @brief Stream the page header to the client.
@@ -38,7 +62,8 @@ void stream_file(char * filename, httpd_req_t * req)
  */
 void stream_page_head(httpd_req_t * req)
 {
-    stream_file("/spiffs/header.html", req);
+    httpd_resp_send_chunk(req, (const char *)header_html_start, header_html_end - header_html_start);
+    //stream_file("/spiffs/header.html", req);
 }
 
 /**
@@ -47,7 +72,8 @@ void stream_page_head(httpd_req_t * req)
  */
 void stream_page_foot(httpd_req_t * req)
 {
-    stream_file("/spiffs/footer.html", req);
+    httpd_resp_send_chunk(req, (const char *)footer_html_start, footer_html_end - footer_html_start);
+    //stream_file("/spiffs/footer.html", req);
 }
 
 /**
@@ -214,11 +240,12 @@ void make_connection(httpd_req_t *req, char * ssid, char * password)
 
 esp_err_t index_get_handler(httpd_req_t *req)
 {
-    const char * vars[] = {"<!--app_name-->"};
-    const char * values[] = {"RGB LED Matrix"};
+    //const char * vars[] = {"<!--app_name-->"};
+    //const char * values[] = {"RGB LED Matrix"};
 
     stream_page_head(req);
-    render_and_stream_content("/spiffs/index.html", req, vars, values, 1);
+    //render_and_stream_content("/spiffs/index.html", req, vars, values, 1);
+    httpd_resp_send_chunk(req, (const char *)index_html_start, index_html_end - index_html_start);
     stream_page_foot(req);
     httpd_resp_send_chunk(req, NULL, 0);
     return ESP_OK;

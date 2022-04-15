@@ -28,6 +28,7 @@ static const char *TAG = "Main";
 static int connection_status = 0;
 static int state = 0;
 static wifi_config_t wifi_config;
+static easy_provision_config_t * easy_provision_config;
 
 /**
  * @brief Receive and handle events on the statuses of the different wifi connections.
@@ -39,6 +40,7 @@ static wifi_config_t wifi_config;
  */
 static void wifi_event_handler(void* arg, esp_event_base_t event_base, int32_t event_id, void* event_data)
 {
+    easy_provision_config_t * config = (easy_provision_config_t *) arg;
     if (event_id == WIFI_EVENT_AP_STACONNECTED) {
         wifi_event_ap_staconnected_t* event = (wifi_event_ap_staconnected_t*) event_data;
         ESP_LOGI(TAG, "station "MACSTR" join, AID=%d", MAC2STR(event->mac), event->aid);
@@ -55,7 +57,7 @@ static void wifi_event_handler(void* arg, esp_event_base_t event_base, int32_t e
         ESP_LOGI(TAG, "station disconnected");
         if (state == STATE_CONNECTING) {
             state = STATE_SETTING_UP;
-            start_provisioning();
+            start_provisioning(config);
         }
         if(connection_status==CONNECTION_STATUS_CONNECTING) {
             connection_status = CONNECTION_STATUS_FAILED;
@@ -103,14 +105,14 @@ int wifi_scan(wifi_ap_record_t *ap_info)
  * memory, it starts the portal.
  * 
  */
-void init_wifi()
+void init_wifi(easy_provision_config_t * config)
 {
     tcpip_adapter_init();
     ESP_ERROR_CHECK(esp_event_loop_create_default());
 
     wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
     ESP_ERROR_CHECK(esp_wifi_init(&cfg));
-    ESP_ERROR_CHECK(esp_event_handler_register(WIFI_EVENT, ESP_EVENT_ANY_ID, &wifi_event_handler, NULL));
+    ESP_ERROR_CHECK(esp_event_handler_register(WIFI_EVENT, ESP_EVENT_ANY_ID, &wifi_event_handler, config));
     
     // Read persisted credentials and attempt to connect
     ESP_ERROR_CHECK(esp_wifi_get_config(ESP_IF_WIFI_STA, &wifi_config));
@@ -121,15 +123,15 @@ void init_wifi()
 }
 
 
-void start_provisioning()
+void start_provisioning(easy_provision_config_t * config)
 {
     esp_wifi_stop();
 
-    wifi_config.ap.ssid_len = strlen("LED-Matrix-AP");
+    wifi_config.ap.ssid_len = strlen(config->ssid);
     wifi_config.ap.max_connection = 2;
     wifi_config.ap.authmode = WIFI_AUTH_OPEN;
-    wifi_config.ap.password[0] = '\0';
-    strncpy((char *)&wifi_config.sta.ssid, "LED-Matrix-AP", sizeof(wifi_config.sta.ssid));
+    strncpy((char *)&wifi_config.ap.password, config->password, strlen(config->password));
+    strncpy((char *)&wifi_config.sta.ssid, config->ssid, strlen(config->ssid));
 
     ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_APSTA));
     ESP_ERROR_CHECK(esp_wifi_set_config(ESP_IF_WIFI_AP, &wifi_config));
@@ -159,11 +161,20 @@ void stop_provisioning()
     endCaptDnsTask();
 }
 
+/**
+ * @brief Start the easy provision system.
+ * 
+ * @param config Configuration details for the portal.
+ * 
+ * @return esp_err_t 
+ */
 esp_err_t easy_provision_start(easy_provision_config_t * config)
 {
-    ESP_LOGI(TAG, "Starting WIFI ...");
+    ESP_LOGI(TAG, "Starting Easy Provision ...");
     nvs_flash_init();
-    init_wifi();
+    easy_provision_config = (easy_provision_config_t *) malloc(sizeof(easy_provision_config_t));
+    memcpy(easy_provision_config, config, sizeof(easy_provision_config_t));
+    init_wifi(config);
 
     return ESP_OK;
 }
