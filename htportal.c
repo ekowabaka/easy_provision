@@ -25,36 +25,16 @@ extern const uint8_t network_html_start[] asm("_binary_network_html_start");
 extern const uint8_t network_html_end[] asm("_binary_network_html_end");
 extern const uint8_t password_html_start[] asm("_binary_password_html_start");
 extern const uint8_t password_html_end[] asm("_binary_password_html_end");
+extern const uint8_t scan_head_html_start[] asm("_binary_scan_head_html_start");
+extern const uint8_t scan_head_html_end[] asm("_binary_scan_head_html_end");
+extern const uint8_t scan_foot_html_start[] asm("_binary_scan_foot_html_start");
+extern const uint8_t scan_foot_html_end[] asm("_binary_scan_foot_html_end");
 
 /**
  * @brief Web server handle
  */
 static httpd_handle_t server = NULL;
 
-// /**
-//  * @brief Stream the contents of a file to the client.
-//  * @param filename 
-//  * @param req 
-//  */
-// void stream_file(char * filename, httpd_req_t * req)
-// {
-//     FILE * stream = fopen(filename, "r");
-//     if (stream == NULL) {
-//         ESP_LOGE(TAG, "Failed to open file %s for reading", filename);
-//         return;
-//     }
-//     char buffer[100] = {0};
-//     while(!feof(stream)) {
-//         size_t len = fread(buffer, 1, 100, stream);
-//         httpd_resp_send_chunk(req, buffer, len);
-//     }
-//     fclose(stream);
-// }
-
-// void stream_content(const uint8_t * content, size_t len, httpd_req_t * req)
-// {
-//     httpd_resp_send_chunk(req, content, len);
-// }
 
 /**
  * @brief Stream the page header to the client.
@@ -63,7 +43,6 @@ static httpd_handle_t server = NULL;
 void stream_page_head(httpd_req_t * req)
 {
     httpd_resp_send_chunk(req, (const char *)header_html_start, header_html_end - header_html_start);
-    //stream_file("/spiffs/header.html", req);
 }
 
 /**
@@ -73,63 +52,6 @@ void stream_page_head(httpd_req_t * req)
 void stream_page_foot(httpd_req_t * req)
 {
     httpd_resp_send_chunk(req, (const char *)footer_html_start, footer_html_end - footer_html_start);
-    //stream_file("/spiffs/footer.html", req);
-}
-
-/**
- * @brief Substitute variables in a string. 
- * Note, this will replace only a single instance of the variable for a given string.
- * 
- * @param string 
- * @param vars 
- * @param values 
- * @param count 
- * @return char* 
- */
-char * substitute_vars(const char *string, const char ** vars, const char ** values, int count) {
-    bool allocated = false;
-    char * result = (char *)string;
-
-    for (int i = 0; i < count; i++) {
-        char * var = (char *)vars[i];
-        char * value = (char *)values[i];
-        char * pos = strstr(result, var);
-
-        if (pos) {
-            int len = strlen(value);
-            int len_var = strlen(var);
-            int len_string = strlen(result);
-            int new_len = len_string - len_var + len;
-
-            char * new_string = (char *)malloc(new_len + 1);
-            memset(new_string, 0, new_len + 1);
-            strncpy(new_string, result, pos - result);
-            strcat(new_string, value);
-            strcat(new_string, pos + len_var);
-            if(allocated) {
-                free(result);
-            }
-            allocated = true;
-            result = new_string;
-        }
-    }
-    return (char *)result;
-}
-
-void render_and_stream_content(char *file, httpd_req_t *req, const char **vars, const char **values, int count) {
-    FILE * stream = fopen(file, "r");
-    if (stream == NULL) {
-        ESP_LOGE(TAG, "Failed to open file %s for reading", file);
-        return;
-    }
-    char buffer[512];
-    while(!feof(stream)) {
-        fgets(buffer, 512, stream) ;
-        char * new_buffer = substitute_vars(buffer, vars, values, count);
-        httpd_resp_send_chunk(req, new_buffer, strlen(new_buffer));
-        free(new_buffer);
-    }
-    fclose(stream);
 }
 
 /**
@@ -210,10 +132,11 @@ void make_connection(httpd_req_t *req, char * ssid, char * password)
     }
 
     if (wifi_get_connection_status() == CONNECTION_STATUS_CONNECTED) {
-        const char * vars[] = {"{{ssid}}"};
-        const char * values[] = {ssid};
+        // const char * vars[] = {"{{ssid}}"};
+        // const char * values[] = {ssid};
         stream_page_head(req);
-        render_and_stream_content("/spiffs/connected.html", req, vars, values, 1);
+        httpd_resp_send_chunk(req, (const char *)connected_html_start, connected_html_end - connected_html_start);
+        //render_and_stream_content("/spiffs/connected.html", req, vars, values, 1);
         stop_provisioning();
         stream_page_foot(req);
     } else {
@@ -240,11 +163,7 @@ void make_connection(httpd_req_t *req, char * ssid, char * password)
 
 esp_err_t index_get_handler(httpd_req_t *req)
 {
-    //const char * vars[] = {"<!--app_name-->"};
-    //const char * values[] = {"RGB LED Matrix"};
-
     stream_page_head(req);
-    //render_and_stream_content("/spiffs/index.html", req, vars, values, 1);
     httpd_resp_send_chunk(req, (const char *)index_html_start, index_html_end - index_html_start);
     stream_page_foot(req);
     httpd_resp_send_chunk(req, NULL, 0);
@@ -258,11 +177,12 @@ esp_err_t manual_get_handler(httpd_req_t *req)
     char pw[3];
     esp_err_t key_found = httpd_query_key_value(query_str, "e", pw, 3);
 
-    const char * vars[] = {"%%error%%"};
-    const char * values[] = {key_found == ESP_OK ? "Failed to connect. Please try again.": ""};
+    // const char * vars[] = {"%%error%%"};
+    // const char * values[] = {key_found == ESP_OK ? "Failed to connect. Please try again.": ""};
 
     stream_page_head(req);
-    render_and_stream_content("/spiffs/manual.html", req, vars, values, 1);
+    //render_and_stream_content("/spiffs/manual.html", req, vars, values, 1);
+    httpd_resp_send_chunk(req, (const char *)manual_html_start, manual_html_end - manual_html_start);
     stream_page_foot(req);
     httpd_resp_send_chunk(req, NULL, 0);
 
@@ -274,18 +194,19 @@ esp_err_t scan_get_handler(httpd_req_t *req)
 {
     wifi_ap_record_t ap_info[DEFAULT_SCAN_LIST_SIZE];
     int ap_count = wifi_scan(ap_info);    
-    char template[512]; 
+    // char template[512]; 
 
-    FILE * stream = fopen("/spiffs/network.html", "r");
-    if (stream == NULL) {
-        ESP_LOGE(TAG, "Failed to open file %s for reading", "/spiffs/network.html");
-        return ESP_FAIL;
-    }
-    fgets(template, 512, stream) ;
-    fclose(stream);
+    // FILE * stream = fopen("/spiffs/network.html", "r");
+    // if (stream == NULL) {
+    //     ESP_LOGE(TAG, "Failed to open file %s for reading", "/spiffs/network.html");
+    //     return ESP_FAIL;
+    // }
+    // fgets(template, 512, stream) ;
+    // fclose(stream);
 
     stream_page_head(req);
-    render_and_stream_content("/spiffs/scan_head.html", req, NULL, NULL, 0);
+    //render_and_stream_content("/spiffs/scan_head.html", req, NULL, NULL, 0);
+    httpd_resp_send_chunk(req, (const char *)scan_head_html_start, scan_head_html_end - scan_head_html_start);
 
     for (int i = 0; (i < DEFAULT_SCAN_LIST_SIZE) && (i < ap_count); i++) {
         const char * vars[] = {
@@ -304,14 +225,14 @@ esp_err_t scan_get_handler(httpd_req_t *req)
             auth, auth, 
             rssi_level
         };
-        char * buffer = substitute_vars(template, vars, vals, 5);
+        //char * buffer = substitute_vars(template, vars, vals, 5);
 
-        httpd_resp_send_chunk(req, buffer, strlen(buffer));
-        free(buffer);
+        //httpd_resp_send_chunk(req, buffer, strlen(buffer));
+        //free(buffer);
     }
 
     stream_page_foot(req);
-    render_and_stream_content("/spiffs/scan_foot.html", req, NULL, NULL, 0);
+    httpd_resp_send_chunk(req, (const char *)scan_foot_html_start, scan_foot_html_end - scan_foot_html_start);
     httpd_resp_send_chunk(req, NULL, 0);
     return ESP_OK;
 }
@@ -353,7 +274,8 @@ esp_err_t connect_lock_get_handler(httpd_req_t *req)
 
     const char * vars[] = {"%%ssid1%%", "%%ssid2%%", "%%ssid3%%", "%%error%%"};
     const char * values[] = {ssid, ssid, ssid, key_found == ESP_OK ? "Failed to connect. Please try again.": ""};
-    render_and_stream_content("/spiffs/password.html", req, vars, values, 4);
+    //render_and_stream_content("/spiffs/password.html", req, vars, values, 4);
+    httpd_resp_send_chunk(req, (const char *)password_html_start, password_html_end - password_html_start);
 
     stream_page_foot(req);
     httpd_resp_send_chunk(req, NULL, 0);
@@ -438,7 +360,7 @@ httpd_handle_t start_webserver(void)
             .user_ctx = NULL
         });
         httpd_register_uri_handler(server, &(httpd_uri_t) {
-            .uri = "/portal_*",
+            .uri = "/style.css",
             .method = HTTP_GET,
             .handler = file_get_handler,
             .user_ctx = NULL
