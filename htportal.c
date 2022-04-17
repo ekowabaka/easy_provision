@@ -4,6 +4,8 @@
 #include "esp_wifi.h"
 #include "private/internal.h"
 #include <math.h>
+#include <cJSON.h>
+#include "private/mustach-cjson.h"
 
 static const char *TAG = "HTPORTAL";
 
@@ -29,6 +31,8 @@ extern const uint8_t scan_head_html_start[] asm("_binary_scan_head_html_start");
 extern const uint8_t scan_head_html_end[] asm("_binary_scan_head_html_end");
 extern const uint8_t scan_foot_html_start[] asm("_binary_scan_foot_html_start");
 extern const uint8_t scan_foot_html_end[] asm("_binary_scan_foot_html_end");
+extern const uint8_t style_css_start[] asm("_binary_style_css_start");
+extern const uint8_t style_css_end[] asm("_binary_style_css_end");
 
 /**
  * @brief Web server handle
@@ -70,48 +74,48 @@ esp_err_t redirect_handler(httpd_req_t *req)
     return ESP_OK;
 }
 
-/**
- * @brief Request handler for serving files endpoint. 
- * 
- * All files served must be prefixed with 'portal_'. In the special case of the '/' endpoint, the 'portal_index.html' 
- * file is served. 
- * 
- * @param req 
- * @return esp_err_t 
- */
-esp_err_t file_get_handler(httpd_req_t *req)
-{
-    ESP_LOGI(TAG, "Attempting to serve file for request %s", req->uri);
-    char filename[32];
-    strcpy(filename, "/spiffs");
-    strcat(filename, strcmp(req->uri, "/") == 0 ? "/portal_index.html" : req->uri);
-    char * extension = strrchr(filename, '.') + 1;
-    if(extension) {
-        if(strcmp(extension, "html") == 0) {
-            httpd_resp_set_type(req, "text/html");
-        } else if(strcmp(extension, "css") == 0) {
-            httpd_resp_set_type(req, "text/css");
-        } else if(strcmp(extension, "js") == 0) {
-            httpd_resp_set_type(req, "application/javascript");
-        } else if(strcmp(extension, "svg") == 0) {
-            httpd_resp_set_type(req, "image/svg+xml");
-        } else if(strcmp(extension, "ico") == 0) {
-            httpd_resp_set_type(req, "image/x-icon");
-        }
-    }
-    FILE * f = fopen(filename, "r");
-    if (f == NULL) {
-        return ESP_FAIL;
-    }  
-    char buffer[100] = {0};
-    while(!feof(f)) {
-        size_t len = fread(buffer, 1, 100, f);
-        httpd_resp_send_chunk(req, buffer, len);
-    }
-    fclose(f);
-    httpd_resp_send_chunk(req, NULL, 0);
-    return ESP_OK;
-} 
+// /**
+//  * @brief Request handler for serving files endpoint. 
+//  * 
+//  * All files served must be prefixed with 'portal_'. In the special case of the '/' endpoint, the 'portal_index.html' 
+//  * file is served. 
+//  * 
+//  * @param req 
+//  * @return esp_err_t 
+//  */
+// esp_err_t file_get_handler(httpd_req_t *req)
+// {
+//     ESP_LOGI(TAG, "Attempting to serve file for request %s", req->uri);
+//     char filename[32];
+//     strcpy(filename, "/spiffs");
+//     strcat(filename, strcmp(req->uri, "/") == 0 ? "/portal_index.html" : req->uri);
+//     char * extension = strrchr(filename, '.') + 1;
+//     if(extension) {
+//         if(strcmp(extension, "html") == 0) {
+//             httpd_resp_set_type(req, "text/html");
+//         } else if(strcmp(extension, "css") == 0) {
+//             httpd_resp_set_type(req, "text/css");
+//         } else if(strcmp(extension, "js") == 0) {
+//             httpd_resp_set_type(req, "application/javascript");
+//         } else if(strcmp(extension, "svg") == 0) {
+//             httpd_resp_set_type(req, "image/svg+xml");
+//         } else if(strcmp(extension, "ico") == 0) {
+//             httpd_resp_set_type(req, "image/x-icon");
+//         }
+//     }
+//     FILE * f = fopen(filename, "r");
+//     if (f == NULL) {
+//         return ESP_FAIL;
+//     }  
+//     char buffer[100] = {0};
+//     while(!feof(f)) {
+//         size_t len = fread(buffer, 1, 100, f);
+//         httpd_resp_send_chunk(req, buffer, len);
+//     }
+//     fclose(f);
+//     httpd_resp_send_chunk(req, NULL, 0);
+//     return ESP_OK;
+// } 
 
 /**
  * @brief Make a connection.
@@ -163,10 +167,26 @@ void make_connection(httpd_req_t *req, char * ssid, char * password)
 
 esp_err_t index_get_handler(httpd_req_t *req)
 {
+    char * output;
+    size_t output_len;
+    cJSON * variables = cJSON_CreateObject();
+    cJSON_AddStringToObject(variables, "app_name", "LED Matrix");
     stream_page_head(req);
-    httpd_resp_send_chunk(req, (const char *)index_html_start, index_html_end - index_html_start);
+
+    mustach_cJSON_mem((const char *)index_html_start, index_html_end - index_html_start, variables, 0, &output, &output_len);
+    httpd_resp_send_chunk(req, output, output_len);
+    cJSON_Delete(variables);
+    free(output);
+    
     stream_page_foot(req);
     httpd_resp_send_chunk(req, NULL, 0);
+    return ESP_OK;
+}
+
+esp_err_t style_css_get_handler(httpd_req_t *req)
+{
+    httpd_resp_set_type(req, "text/css");
+    httpd_resp_send(req, (const char *)style_css_start, style_css_end - style_css_start);
     return ESP_OK;
 }
 
@@ -362,7 +382,7 @@ httpd_handle_t start_webserver(void)
         httpd_register_uri_handler(server, &(httpd_uri_t) {
             .uri = "/style.css",
             .method = HTTP_GET,
-            .handler = file_get_handler,
+            .handler = style_css_get_handler,
             .user_ctx = NULL
         });
         httpd_register_uri_handler(server, &(httpd_uri_t) {

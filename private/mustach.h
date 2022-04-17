@@ -21,12 +21,12 @@ struct mustach_sbuf; /* see below */
 /**
  * Maximum nested imbrications supported
  */
-#define MUSTACH_MAX_DEPTH  256
+#define MUSTACH_MAX_DEPTH  16
 
 /**
  * Maximum length of tags in mustaches {{...}}
  */
-#define MUSTACH_MAX_LENGTH 4096
+#define MUSTACH_MAX_LENGTH 32
 
 /**
  * Maximum length of delimitors (2 normally but extended here)
