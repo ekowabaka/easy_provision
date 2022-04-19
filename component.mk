@@ -15,9 +15,12 @@ $(call compile_only_if,$(CONFIG_EASY_PROVISION_HTPORTAL),htportal.o)
 $(call compile_only_if,$(CONFIG_EASY_PROVISION_JSPORTAL),jsportal.o)
 
 ifdef CONFIG_EASY_PROVISION_HTPORTAL
-	COMPONENT_EMBED_FILES := htportal/connected.html htportal/footer.html htportal/header.html htportal/index.html \
-			htportal/manual.html htportal/network.html htportal/password.html htportal/scan_head.html \
-			htportal/scan_foot.html htportal/style.css
+	COMPONENT_EMBED_TXTFILES := htportal/connected.html htportal/footer.html htportal/header.html htportal/index.html \
+		htportal/manual.html htportal/network.html htportal/password.html htportal/scan_head.html \
+		htportal/scan_foot.html htportal/style.css
+
+	COMPONENT_EMBED_FILES := htportal/auth-lock.png htportal/auth-open.png htportal/sig-0.png htportal/sig-1.png \
+		htportal/sig-2.png htportal/sig-3.png htportal/sig-4.png
 endif
 
 ifdef CONFIG_EASY_PROVISION_JSPORTAL

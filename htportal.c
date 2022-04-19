@@ -33,6 +33,11 @@ extern const uint8_t scan_foot_html_start[] asm("_binary_scan_foot_html_start");
 extern const uint8_t scan_foot_html_end[] asm("_binary_scan_foot_html_end");
 extern const uint8_t style_css_start[] asm("_binary_style_css_start");
 extern const uint8_t style_css_end[] asm("_binary_style_css_end");
+extern const uint8_t auth_lock_png_start[] asm("_binary_auth_lock_png_start");
+extern const uint8_t auth_lock_png_end[] asm("_binary_auth_lock_png_end");
+extern const uint8_t auth_open_png_start[] asm("_binary_auth_open_png_start");
+extern const uint8_t auth_open_png_end[] asm("_binary_auth_open_png_end");
+
 
 /**
  * @brief Web server handle
@@ -73,49 +78,6 @@ esp_err_t redirect_handler(httpd_req_t *req)
     httpd_resp_send(req, NULL, 0);
     return ESP_OK;
 }
-
-// /**
-//  * @brief Request handler for serving files endpoint. 
-//  * 
-//  * All files served must be prefixed with 'portal_'. In the special case of the '/' endpoint, the 'portal_index.html' 
-//  * file is served. 
-//  * 
-//  * @param req 
-//  * @return esp_err_t 
-//  */
-// esp_err_t file_get_handler(httpd_req_t *req)
-// {
-//     ESP_LOGI(TAG, "Attempting to serve file for request %s", req->uri);
-//     char filename[32];
-//     strcpy(filename, "/spiffs");
-//     strcat(filename, strcmp(req->uri, "/") == 0 ? "/portal_index.html" : req->uri);
-//     char * extension = strrchr(filename, '.') + 1;
-//     if(extension) {
-//         if(strcmp(extension, "html") == 0) {
-//             httpd_resp_set_type(req, "text/html");
-//         } else if(strcmp(extension, "css") == 0) {
-//             httpd_resp_set_type(req, "text/css");
-//         } else if(strcmp(extension, "js") == 0) {
-//             httpd_resp_set_type(req, "application/javascript");
-//         } else if(strcmp(extension, "svg") == 0) {
-//             httpd_resp_set_type(req, "image/svg+xml");
-//         } else if(strcmp(extension, "ico") == 0) {
-//             httpd_resp_set_type(req, "image/x-icon");
-//         }
-//     }
-//     FILE * f = fopen(filename, "r");
-//     if (f == NULL) {
-//         return ESP_FAIL;
-//     }  
-//     char buffer[100] = {0};
-//     while(!feof(f)) {
-//         size_t len = fread(buffer, 1, 100, f);
-//         httpd_resp_send_chunk(req, buffer, len);
-//     }
-//     fclose(f);
-//     httpd_resp_send_chunk(req, NULL, 0);
-//     return ESP_OK;
-// } 
 
 /**
  * @brief Make a connection.
@@ -190,6 +152,17 @@ esp_err_t style_css_get_handler(httpd_req_t *req)
     return ESP_OK;
 }
 
+esp_err_t png_image_get_handler(httpd_req_t * req)
+{
+    httpd_resp_set_type(req, "image/png");
+    if(strcmp(req->uri, "/auth-lock.png") == 0) {
+        httpd_resp_send(req, (const char *)auth_lock_png_start, auth_lock_png_end - auth_lock_png_start);
+    } else if(strcmp(req->uri, "/auth-open.png") == 0) {
+        httpd_resp_send(req, (const char *)auth_open_png_start, auth_open_png_end - auth_open_png_start);
+    }
+    return ESP_OK;
+}
+
 esp_err_t manual_get_handler(httpd_req_t *req)
 {
     size_t query_len = httpd_req_get_url_query_len(req);
@@ -214,45 +187,27 @@ esp_err_t scan_get_handler(httpd_req_t *req)
 {
     wifi_ap_record_t ap_info[DEFAULT_SCAN_LIST_SIZE];
     int ap_count = wifi_scan(ap_info);    
-    // char template[512]; 
-
-    // FILE * stream = fopen("/spiffs/network.html", "r");
-    // if (stream == NULL) {
-    //     ESP_LOGE(TAG, "Failed to open file %s for reading", "/spiffs/network.html");
-    //     return ESP_FAIL;
-    // }
-    // fgets(template, 512, stream) ;
-    // fclose(stream);
-
     stream_page_head(req);
-    //render_and_stream_content("/spiffs/scan_head.html", req, NULL, NULL, 0);
     httpd_resp_send_chunk(req, (const char *)scan_head_html_start, scan_head_html_end - scan_head_html_start);
 
     for (int i = 0; (i < DEFAULT_SCAN_LIST_SIZE) && (i < ap_count); i++) {
-        const char * vars[] = {
-            "{{ssid2}}", 
-            "{{ssid1}}", 
-            "{{auth2}}", 
-            "{{auth1}}", 
-            "{{rssi}}"
-        };
-        char rssi_level[3];
-        sprintf(rssi_level, "%d", (int) floor(((ap_info[i].rssi + 100.0) / 70.0) * 4.0));
+        double rssi_level = round(floor(((ap_info[i].rssi + 100.0) / 70.0) * 4.0));
         char *auth = ap_info[i].authmode == WIFI_AUTH_OPEN ? "open" : "lock";
-        const char * vals[] = {
-            (char *)ap_info[i].ssid, 
-            (char *)ap_info[i].ssid, 
-            auth, auth, 
-            rssi_level
-        };
-        //char * buffer = substitute_vars(template, vars, vals, 5);
+        cJSON * network = cJSON_CreateObject();
+        cJSON_AddStringToObject(network, "ssid", (const char *) ap_info[i].ssid);
+        cJSON_AddStringToObject(network, "auth", auth);
+        cJSON_AddItemToObject(network, "rssi", cJSON_CreateNumber(rssi_level));
 
-        //httpd_resp_send_chunk(req, buffer, strlen(buffer));
-        //free(buffer);
+        char * output;
+        size_t output_len;
+        mustach_cJSON_mem((const char *)network_html_start, network_html_end - network_html_start, network, 0, &output, &output_len);
+        httpd_resp_send_chunk(req, output, output_len);
+        cJSON_Delete(network);
+        free(output);
     }
 
-    stream_page_foot(req);
     httpd_resp_send_chunk(req, (const char *)scan_foot_html_start, scan_foot_html_end - scan_foot_html_start);
+    stream_page_foot(req);
     httpd_resp_send_chunk(req, NULL, 0);
     return ESP_OK;
 }
@@ -383,6 +338,18 @@ httpd_handle_t start_webserver(void)
             .uri = "/style.css",
             .method = HTTP_GET,
             .handler = style_css_get_handler,
+            .user_ctx = NULL
+        });
+        httpd_register_uri_handler(server, &(httpd_uri_t) {
+            .uri = "/auth-lock.png",
+            .method = HTTP_GET,
+            .handler = png_image_get_handler,
+            .user_ctx = NULL
+        });
+        httpd_register_uri_handler(server, &(httpd_uri_t) {
+            .uri = "/auth-open.png",
+            .method = HTTP_GET,
+            .handler = png_image_get_handler,
             .user_ctx = NULL
         });
         httpd_register_uri_handler(server, &(httpd_uri_t) {
