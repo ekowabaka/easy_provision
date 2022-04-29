@@ -5,10 +5,9 @@
 #include "private/internal.h"
 #include <math.h>
 #include <cJSON.h>
-#include "private/mustach-cjson.h"
+//#include "private/mustach-cjson.h"
 
 static const char *TAG = "HTPORTAL";
-
 
 /**
  * Content strings for the various pages
@@ -38,27 +37,37 @@ extern const uint8_t auth_lock_png_end[] asm("_binary_auth_lock_png_end");
 extern const uint8_t auth_open_png_start[] asm("_binary_auth_open_png_start");
 extern const uint8_t auth_open_png_end[] asm("_binary_auth_open_png_end");
 
+extern const uint8_t sig_0_png_start[] asm("_binary_sig_0_png_start");
+extern const uint8_t sig_0_png_end[] asm("_binary_sig_0_png_end");
+extern const uint8_t sig_1_png_start[] asm("_binary_sig_1_png_start");
+extern const uint8_t sig_1_png_end[] asm("_binary_sig_1_png_end");
+extern const uint8_t sig_2_png_start[] asm("_binary_sig_2_png_start");
+extern const uint8_t sig_2_png_end[] asm("_binary_sig_2_png_end");
+extern const uint8_t sig_3_png_start[] asm("_binary_sig_3_png_start");
+extern const uint8_t sig_3_png_end[] asm("_binary_sig_3_png_end");
+extern const uint8_t sig_4_png_start[] asm("_binary_sig_4_png_start");
+extern const uint8_t sig_4_png_end[] asm("_binary_sig_4_png_end");
+
 
 /**
  * @brief Web server handle
  */
 static httpd_handle_t server = NULL;
 
-
 /**
  * @brief Stream the page header to the client.
- * @param req 
+ * @param req
  */
-void stream_page_head(httpd_req_t * req)
+void stream_page_head(httpd_req_t *req)
 {
     httpd_resp_send_chunk(req, (const char *)header_html_start, header_html_end - header_html_start);
 }
 
 /**
  * @brief Stream the page footer to the client.
- * @param req 
+ * @param req
  */
-void stream_page_foot(httpd_req_t * req)
+void stream_page_foot(httpd_req_t *req)
 {
     httpd_resp_send_chunk(req, (const char *)footer_html_start, footer_html_end - footer_html_start);
 }
@@ -66,9 +75,9 @@ void stream_page_foot(httpd_req_t * req)
 /**
  * @brief Redirect any unknown requests to the index page.
  * This is used to force clients to display a captive portal popup.
- * 
- * @param req 
- * @return esp_err_t 
+ *
+ * @param req
+ * @return esp_err_t
  */
 esp_err_t redirect_handler(httpd_req_t *req)
 {
@@ -81,41 +90,51 @@ esp_err_t redirect_handler(httpd_req_t *req)
 
 /**
  * @brief Make a connection.
- * 
- * @param req 
- * @param ssid 
- * @param password 
+ *
+ * @param req
+ * @param ssid
+ * @param password
  */
-void make_connection(httpd_req_t *req, char * ssid, char * password)
+void make_connection(httpd_req_t *req, char *ssid, char *password)
 {
     ESP_LOGI(TAG, "Attempting to connect to %s", ssid);
-    if(wifi_start_station(ssid, password) == ESP_OK) {
+    if (wifi_start_station(ssid, password) == ESP_OK)
+    {
         int connection_status = wifi_get_connection_status();
-        while(connection_status == CONNECTION_STATUS_CONNECTING || connection_status == CONNECTION_STATUS_WAITING) {
+        while (connection_status == CONNECTION_STATUS_CONNECTING || connection_status == CONNECTION_STATUS_WAITING)
+        {
             vTaskDelay(100 / portTICK_PERIOD_MS);
             connection_status = wifi_get_connection_status();
+            ESP_LOGI(TAG, "Wifi Connection status: %d", connection_status);
         }
+        ESP_LOGI(TAG, "Wifi Connected");
     }
 
-    if (wifi_get_connection_status() == CONNECTION_STATUS_CONNECTED) {
+    if (wifi_get_connection_status() == CONNECTION_STATUS_CONNECTED)
+    {
         // const char * vars[] = {"{{ssid}}"};
         // const char * values[] = {ssid};
         stream_page_head(req);
-        httpd_resp_send_chunk(req, (const char *)connected_html_start, connected_html_end - connected_html_start);
-        //render_and_stream_content("/spiffs/connected.html", req, vars, values, 1);
+        // httpd_resp_send_chunk(req, (const char *)connected_html_start, connected_html_end - connected_html_start);
+        // render_and_stream_content("/spiffs/connected.html", req, vars, values, 1);
         stop_provisioning();
         stream_page_foot(req);
-    } else {
+    }
+    else
+    {
         char url[64];
         size_t query_len = httpd_req_get_url_query_len(req);
-        char * query_str = calloc(1, query_len + 1);
+        char *query_str = calloc(1, query_len + 1);
         char redirect[16];
 
         httpd_req_get_url_query_str(req, query_str, query_len + 1);
         esp_err_t error = httpd_query_key_value(query_str, "redirect", redirect, sizeof(redirect));
-        if (error == ESP_ERR_NOT_FOUND) {
+        if (error == ESP_ERR_NOT_FOUND)
+        {
             sprintf(url, "./?ssid=%s&e=pw", ssid);
-        } else {
+        }
+        else
+        {
             sprintf(url, "/%s?ssid=%s&e=pw", redirect, ssid);
         }
         httpd_resp_set_status(req, "303 See Other");
@@ -125,21 +144,16 @@ void make_connection(httpd_req_t *req, char * ssid, char * password)
     }
 
     httpd_resp_send_chunk(req, NULL, 0);
-} 
+}
 
 esp_err_t index_get_handler(httpd_req_t *req)
 {
-    char * output;
-    size_t output_len;
-    cJSON * variables = cJSON_CreateObject();
-    cJSON_AddStringToObject(variables, "app_name", "LED Matrix");
+    char buffer[512];
     stream_page_head(req);
 
-    mustach_cJSON_mem((const char *)index_html_start, index_html_end - index_html_start, variables, 0, &output, &output_len);
-    httpd_resp_send_chunk(req, output, output_len);
-    cJSON_Delete(variables);
-    free(output);
-    
+    sprintf(buffer, (const char *) index_html_start, "LED Matrix");
+    httpd_resp_send_chunk(req, buffer, strlen(buffer));
+
     stream_page_foot(req);
     httpd_resp_send_chunk(req, NULL, 0);
     return ESP_OK;
@@ -152,13 +166,36 @@ esp_err_t style_css_get_handler(httpd_req_t *req)
     return ESP_OK;
 }
 
-esp_err_t png_image_get_handler(httpd_req_t * req)
+esp_err_t png_image_get_handler(httpd_req_t *req)
 {
     httpd_resp_set_type(req, "image/png");
-    if(strcmp(req->uri, "/auth-lock.png") == 0) {
+    if (strcmp(req->uri, "/auth-lock.png") == 0)
+    {
         httpd_resp_send(req, (const char *)auth_lock_png_start, auth_lock_png_end - auth_lock_png_start);
-    } else if(strcmp(req->uri, "/auth-open.png") == 0) {
+    }
+    else if (strcmp(req->uri, "/auth-open.png") == 0)
+    {
         httpd_resp_send(req, (const char *)auth_open_png_start, auth_open_png_end - auth_open_png_start);
+    }
+    else if (strcmp(req->uri, "/sig-0.png") == 0)
+    {
+        httpd_resp_send(req, (const char *)sig_0_png_start, sig_0_png_end - sig_0_png_start);
+    }
+    else if (strcmp(req->uri, "/sig-1.png") == 0)
+    {
+        httpd_resp_send(req, (const char *)sig_1_png_start, sig_1_png_end - sig_1_png_start);    
+    }
+    else if (strcmp(req->uri, "/sig-2.png") == 0)
+    {
+        httpd_resp_send(req, (const char *)sig_2_png_start, sig_2_png_end - sig_2_png_start);
+    }
+    else if (strcmp(req->uri, "/sig-3.png") == 0)
+    {
+        httpd_resp_send(req, (const char *)sig_3_png_start, sig_3_png_end - sig_3_png_start);
+    }
+    else if (strcmp(req->uri, "/sig-4.png") == 0)
+    {
+        httpd_resp_send(req, (const char *)sig_4_png_start, sig_4_png_end - sig_4_png_start);
     }
     return ESP_OK;
 }
@@ -166,7 +203,7 @@ esp_err_t png_image_get_handler(httpd_req_t * req)
 esp_err_t manual_get_handler(httpd_req_t *req)
 {
     size_t query_len = httpd_req_get_url_query_len(req);
-    char * query_str = calloc(1, query_len + 1);
+    char *query_str = calloc(1, query_len + 1);
     char pw[3];
     esp_err_t key_found = httpd_query_key_value(query_str, "e", pw, 3);
 
@@ -174,7 +211,7 @@ esp_err_t manual_get_handler(httpd_req_t *req)
     // const char * values[] = {key_found == ESP_OK ? "Failed to connect. Please try again.": ""};
 
     stream_page_head(req);
-    //render_and_stream_content("/spiffs/manual.html", req, vars, values, 1);
+    // render_and_stream_content("/spiffs/manual.html", req, vars, values, 1);
     httpd_resp_send_chunk(req, (const char *)manual_html_start, manual_html_end - manual_html_start);
     stream_page_foot(req);
     httpd_resp_send_chunk(req, NULL, 0);
@@ -186,24 +223,22 @@ esp_err_t manual_get_handler(httpd_req_t *req)
 esp_err_t scan_get_handler(httpd_req_t *req)
 {
     wifi_ap_record_t ap_info[DEFAULT_SCAN_LIST_SIZE];
-    int ap_count = wifi_scan(ap_info);    
+    int ap_count = wifi_scan(ap_info);
     stream_page_head(req);
     httpd_resp_send_chunk(req, (const char *)scan_head_html_start, scan_head_html_end - scan_head_html_start);
 
-    for (int i = 0; (i < DEFAULT_SCAN_LIST_SIZE) && (i < ap_count); i++) {
-        double rssi_level = round(floor(((ap_info[i].rssi + 100.0) / 70.0) * 4.0));
+    for (int i = 0; (i < DEFAULT_SCAN_LIST_SIZE) && (i < ap_count); i++)
+    {
+        int rssi_level = round(((ap_info[i].rssi + 100.0) / 50.0) * 4.0);
+        rssi_level = rssi_level > 4 ? 4 : rssi_level;
+        rssi_level = rssi_level < 0 ? 0 : rssi_level;
+        char srssi[4];
+        char buffer[512];
         char *auth = ap_info[i].authmode == WIFI_AUTH_OPEN ? "open" : "lock";
-        cJSON * network = cJSON_CreateObject();
-        cJSON_AddStringToObject(network, "ssid", (const char *) ap_info[i].ssid);
-        cJSON_AddStringToObject(network, "auth", auth);
-        cJSON_AddItemToObject(network, "rssi", cJSON_CreateNumber(rssi_level));
 
-        char * output;
-        size_t output_len;
-        mustach_cJSON_mem((const char *)network_html_start, network_html_end - network_html_start, network, 0, &output, &output_len);
-        httpd_resp_send_chunk(req, output, output_len);
-        cJSON_Delete(network);
-        free(output);
+        sprintf(srssi, "%d", rssi_level);
+        sprintf(buffer, (const char *)network_html_start, auth, (const char *) ap_info[i].ssid, (const char *)ap_info[i].ssid, auth, srssi);
+        httpd_resp_send_chunk(req, buffer, strlen(buffer));
     }
 
     httpd_resp_send_chunk(req, (const char *)scan_foot_html_start, scan_foot_html_end - scan_foot_html_start);
@@ -215,8 +250,8 @@ esp_err_t scan_get_handler(httpd_req_t *req)
 esp_err_t connect_open_get_handler(httpd_req_t *req)
 {
     size_t query_len = httpd_req_get_url_query_len(req);
-    char * query_str = calloc(1, query_len + 1);
-    httpd_req_get_url_query_str(req, query_str, query_len + 1);    
+    char *query_str = calloc(1, query_len + 1);
+    httpd_req_get_url_query_str(req, query_str, query_len + 1);
     char ssid[33];
     httpd_query_key_value(query_str, "ssid", ssid, sizeof(ssid));
 
@@ -231,14 +266,15 @@ esp_err_t connect_lock_get_handler(httpd_req_t *req)
 {
     ESP_LOGI(TAG, "Attempting to connect to %s", req->uri);
     size_t query_len = httpd_req_get_url_query_len(req);
-    if (query_len == 0) {
-        //@todo make this print some nice message.
+
+    if (query_len == 0)
+    {
         return ESP_FAIL;
     }
-    
-    char * query_str = calloc(1, query_len + 1);
+
+    char *query_str = calloc(1, query_len + 1);
     httpd_req_get_url_query_str(req, query_str, query_len + 1);
-    
+
     char ssid[32];
     httpd_query_key_value(query_str, "ssid", ssid, sizeof(ssid));
 
@@ -247,10 +283,9 @@ esp_err_t connect_lock_get_handler(httpd_req_t *req)
     char pw[3];
     esp_err_t key_found = httpd_query_key_value(query_str, "e", pw, 3);
 
-    const char * vars[] = {"%%ssid1%%", "%%ssid2%%", "%%ssid3%%", "%%error%%"};
-    const char * values[] = {ssid, ssid, ssid, key_found == ESP_OK ? "Failed to connect. Please try again.": ""};
-    //render_and_stream_content("/spiffs/password.html", req, vars, values, 4);
-    httpd_resp_send_chunk(req, (const char *)password_html_start, password_html_end - password_html_start);
+    char buffer[512];
+    sprintf(buffer, (const char *)password_html_start, ssid, key_found == ESP_OK ? "Failed to connect. Please try again." : "", ssid);
+    httpd_resp_send_chunk(req, buffer, strlen(buffer));
 
     stream_page_foot(req);
     httpd_resp_send_chunk(req, NULL, 0);
@@ -262,13 +297,15 @@ esp_err_t connect_lock_get_handler(httpd_req_t *req)
 esp_err_t connect_post_handler(httpd_req_t *req)
 {
     size_t buf_len = req->content_len + 1;
-    char * buf = malloc(buf_len);
+    char *buf = malloc(buf_len);
     size_t received = 0;
 
     // Download all the HTTP content
-    while(received < req->content_len) {
+    while (received < req->content_len)
+    {
         size_t ret = httpd_req_recv(req, buf + received, buf_len - received);
-        if(ret <= 0 && ret == HTTPD_SOCK_ERR_TIMEOUT) {
+        if (ret <= 0 && ret == HTTPD_SOCK_ERR_TIMEOUT)
+        {
             httpd_resp_send_408(req);
             free(buf);
             return ESP_FAIL;
@@ -283,7 +320,7 @@ esp_err_t connect_post_handler(httpd_req_t *req)
     httpd_query_key_value(buf, "password", password, sizeof(password));
 
     make_connection(req, ssid, password);
-    free(buf); 
+    free(buf);
     return ESP_OK;
 }
 
@@ -296,68 +333,65 @@ httpd_handle_t start_webserver(void)
 
     // Start the httpd server
     ESP_LOGI(TAG, "Starting server on port: '%d'", config.server_port);
-    if (httpd_start(&server, &config) == ESP_OK) {
+    if (httpd_start(&server, &config) == ESP_OK)
+    {
         ESP_LOGI(TAG, "Registering URI handlers");
-        httpd_register_uri_handler(server, &(httpd_uri_t) {
-            .uri = "/",
-            .method = HTTP_GET,
-            .handler = index_get_handler,
-            .user_ctx = NULL
-        });
-        httpd_register_uri_handler(server, &(httpd_uri_t) {
-            .uri = "/scan",
-            .method = HTTP_GET,
-            .handler = scan_get_handler,
-            .user_ctx = NULL
-        });
-        httpd_register_uri_handler(server, &(httpd_uri_t) {
-            .uri = "/manual",
-            .method = HTTP_GET,
-            .handler = manual_get_handler,
-            .user_ctx = NULL
-        });
-        httpd_register_uri_handler(server, &(httpd_uri_t) {
-            .uri = "/connect",
-            .method = HTTP_POST,
-            .handler = connect_post_handler,
-            .user_ctx = NULL
-        });
-        httpd_register_uri_handler(server, &(httpd_uri_t) {
-            .uri = "/connect_lock",
-            .method = HTTP_GET,
-            .handler = connect_lock_get_handler,
-            .user_ctx = NULL
-        });
-        httpd_register_uri_handler(server, &(httpd_uri_t) {
-            .uri = "/connect_open",
-            .method = HTTP_GET,
-            .handler = connect_open_get_handler,
-            .user_ctx = NULL
-        });
-        httpd_register_uri_handler(server, &(httpd_uri_t) {
-            .uri = "/style.css",
-            .method = HTTP_GET,
-            .handler = style_css_get_handler,
-            .user_ctx = NULL
-        });
-        httpd_register_uri_handler(server, &(httpd_uri_t) {
-            .uri = "/auth-lock.png",
-            .method = HTTP_GET,
-            .handler = png_image_get_handler,
-            .user_ctx = NULL
-        });
-        httpd_register_uri_handler(server, &(httpd_uri_t) {
-            .uri = "/auth-open.png",
-            .method = HTTP_GET,
-            .handler = png_image_get_handler,
-            .user_ctx = NULL
-        });
-        httpd_register_uri_handler(server, &(httpd_uri_t) {
-            .uri = "/*",
-            .method = HTTP_GET,
-            .handler = redirect_handler,
-            .user_ctx = NULL
-        });        
+        httpd_register_uri_handler(server, &(httpd_uri_t){
+                                               .uri = "/",
+                                               .method = HTTP_GET,
+                                               .handler = index_get_handler,
+                                               .user_ctx = NULL});
+        httpd_register_uri_handler(server, &(httpd_uri_t){
+                                               .uri = "/scan",
+                                               .method = HTTP_GET,
+                                               .handler = scan_get_handler,
+                                               .user_ctx = NULL});
+        httpd_register_uri_handler(server, &(httpd_uri_t){
+                                               .uri = "/manual",
+                                               .method = HTTP_GET,
+                                               .handler = manual_get_handler,
+                                               .user_ctx = NULL});
+        httpd_register_uri_handler(server, &(httpd_uri_t){
+                                               .uri = "/connect",
+                                               .method = HTTP_POST,
+                                               .handler = connect_post_handler,
+                                               .user_ctx = NULL});
+        httpd_register_uri_handler(server, &(httpd_uri_t){
+                                               .uri = "/connect_lock",
+                                               .method = HTTP_GET,
+                                               .handler = connect_lock_get_handler,
+                                               .user_ctx = NULL});
+        httpd_register_uri_handler(server, &(httpd_uri_t){
+                                               .uri = "/connect_open",
+                                               .method = HTTP_GET,
+                                               .handler = connect_open_get_handler,
+                                               .user_ctx = NULL});
+        httpd_register_uri_handler(server, &(httpd_uri_t){
+                                               .uri = "/style.css",
+                                               .method = HTTP_GET,
+                                               .handler = style_css_get_handler,
+                                               .user_ctx = NULL});
+        httpd_register_uri_handler(server, &(httpd_uri_t){
+                                               .uri = "/auth-lock.png",
+                                               .method = HTTP_GET,
+                                               .handler = png_image_get_handler,
+                                               .user_ctx = NULL});
+        httpd_register_uri_handler(server, &(httpd_uri_t){
+                                               .uri = "/auth-open.png",
+                                               .method = HTTP_GET,
+                                               .handler = png_image_get_handler,
+                                               .user_ctx = NULL});
+        httpd_register_uri_handler(server, &(httpd_uri_t){
+                                               .uri = "/sig-*",
+                                               .method = HTTP_GET,
+                                               .handler = png_image_get_handler,
+                                               .user_ctx = NULL});
+        httpd_register_uri_handler(server, &(httpd_uri_t){
+                                               .uri = "/*",
+                                               .method = HTTP_GET,
+                                               .handler = redirect_handler,
+                                               .user_ctx = NULL});
+            
         return server;
     }
 
