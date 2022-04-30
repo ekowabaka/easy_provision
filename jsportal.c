@@ -160,7 +160,7 @@ esp_err_t api_connect_post_handler(httpd_req_t *req)
         free(buf);
         return ESP_FAIL;
     }
-    if(wifi_start_station(ssid->valuestring, password->valuestring) == ESP_OK) {
+    if(wifi_start_connecting(ssid->valuestring, password->valuestring) == ESP_OK) {
         httpd_resp_set_status(req, "200 OK");
         httpd_resp_send(req, success, strlen(success));
         stop_provisioning();

@@ -12,7 +12,7 @@ typedef struct {
 } easy_provision_config_t;
 
 esp_err_t easy_provision_start(easy_provision_config_t *config);
-esp_err_t easy_provision_reset();
+void easy_provision_reset(bool restart);
 esp_err_t easy_provision_stop();
 
 #endif

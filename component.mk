@@ -7,7 +7,7 @@
 # please read the ESP-IDF documents if you need to do this.
 #
 
-COMPONENT_OBJS := easy_provision.o captdns.o mustach.o mustach-wrap.o mustach-cjson.o
+COMPONENT_OBJS := easy_provision.o captdns.o
 COMPONENT_DEPENDS := log tcpip_adapter esp_http_server esp_event nvs_flash
 COMPONENT_PRIV_INCLUDEDIRS := private
 

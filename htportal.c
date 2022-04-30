@@ -98,25 +98,23 @@ esp_err_t redirect_handler(httpd_req_t *req)
 void make_connection(httpd_req_t *req, char *ssid, char *password)
 {
     ESP_LOGI(TAG, "Attempting to connect to %s", ssid);
-    if (wifi_start_station(ssid, password) == ESP_OK)
+    if (wifi_start_connecting(ssid, password) == ESP_OK)
     {
         int connection_status = wifi_get_connection_status();
         while (connection_status == CONNECTION_STATUS_CONNECTING || connection_status == CONNECTION_STATUS_WAITING)
         {
             vTaskDelay(100 / portTICK_PERIOD_MS);
             connection_status = wifi_get_connection_status();
-            ESP_LOGI(TAG, "Wifi Connection status: %d", connection_status);
         }
         ESP_LOGI(TAG, "Wifi Connected");
     }
 
     if (wifi_get_connection_status() == CONNECTION_STATUS_CONNECTED)
     {
-        // const char * vars[] = {"{{ssid}}"};
-        // const char * values[] = {ssid};
+        char buffer[256];
         stream_page_head(req);
-        // httpd_resp_send_chunk(req, (const char *)connected_html_start, connected_html_end - connected_html_start);
-        // render_and_stream_content("/spiffs/connected.html", req, vars, values, 1);
+        sprintf(buffer, (const char *)connected_html_start, ssid);
+        httpd_resp_send_chunk(req, buffer, strlen(buffer));
         stop_provisioning();
         stream_page_foot(req);
     }
