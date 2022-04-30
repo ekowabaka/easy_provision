@@ -204,13 +204,11 @@ esp_err_t manual_get_handler(httpd_req_t *req)
     char *query_str = calloc(1, query_len + 1);
     char pw[3];
     esp_err_t key_found = httpd_query_key_value(query_str, "e", pw, 3);
-
-    // const char * vars[] = {"%%error%%"};
-    // const char * values[] = {key_found == ESP_OK ? "Failed to connect. Please try again.": ""};
+    char buffer[512];
 
     stream_page_head(req);
-    // render_and_stream_content("/spiffs/manual.html", req, vars, values, 1);
-    httpd_resp_send_chunk(req, (const char *)manual_html_start, manual_html_end - manual_html_start);
+    sprintf(buffer, (const char *)manual_html_start, key_found == ESP_OK ? "Failed to connect. Please try again.": "");
+    httpd_resp_send_chunk(req, buffer, strlen(buffer));
     stream_page_foot(req);
     httpd_resp_send_chunk(req, NULL, 0);
 
