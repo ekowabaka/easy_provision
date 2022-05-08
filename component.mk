@@ -24,5 +24,7 @@ ifdef CONFIG_EASY_PROVISION_HTPORTAL
 endif
 
 ifdef CONFIG_EASY_PROVISION_JSPORTAL
-	COMPONENT_EMBED_FILES := $(wildcard jsportal/*.html)
+	COMPONENT_EMBED_TXTFILES := jsportal/connected.html jsportal/index.html jsportal/manual.html jsportal/select.html \
+		jsportal/script.js jsportal/lock.svg jsportal/sig_0.svg jsportal/sig_1.svg jsportal/sig_2.svg jsportal/sig_3.svg \
+		jsportal/sig_4.svg jsportal/style.css jsportal/sync.svg
 endif
