@@ -14,10 +14,40 @@
 
 static const char *TAG = "JSPORTAL";
 
+extern const uint8_t index_html_start[] asm("_binary_index_html_start");
+extern const uint8_t index_html_end[] asm("_binary_index_html_end");
+extern const uint8_t style_css_start[] asm("_binary_style_css_start");
+extern const uint8_t style_css_end[] asm("_binary_style_css_end");
+extern const uint8_t script_js_start[] asm("_binary_script_js_start");
+extern const uint8_t script_js_end[] asm("_binary_script_js_end");
+
+
 /**
  * @brief Web server handle
  */
 static httpd_handle_t server = NULL;
+
+esp_err_t index_get_handler(httpd_req_t *req)
+{
+    char buffer[1024];
+    sprintf(buffer, (const char *) index_html_start, "LED Matrix");
+    httpd_resp_send(req, buffer, strlen(buffer));
+    return ESP_OK;
+}
+
+esp_err_t style_css_get_handler(httpd_req_t *req)
+{
+    httpd_resp_set_type(req, "text/css");
+    httpd_resp_send(req, (const char *) style_css_start, style_css_end - style_css_start);
+    return ESP_OK;
+}
+
+esp_err_t script_js_get_handler(httpd_req_t *req)
+{
+    httpd_resp_set_type(req, "text/css");
+    httpd_resp_send(req, (const char *) script_js_start, script_js_end - script_js_start);
+    return ESP_OK;
+}
 
 esp_err_t api_status_get_handler(httpd_req_t *req)
 {
@@ -71,61 +101,6 @@ esp_err_t redirect_handler(httpd_req_t *req)
     httpd_resp_send(req, NULL, 0);
     return ESP_OK;
 }
-
-/**
- * @brief Request handler for serving files endpoint.
- *
- * All files served must be prefixed with 'portal_'. In the special case of the '/' endpoint, the 'portal_index.html'
- * file is served.
- *
- * @param req
- * @return esp_err_t
- */
-// esp_err_t file_get_handler(httpd_req_t *req)
-// {
-//     ESP_LOGI(TAG, "Attempting to serve file for request %s", req->uri);
-//     char filename[32];
-//     strcpy(filename, "/spiffs");
-//     strcat(filename, strcmp(req->uri, "/") == 0 ? "/portal_index.html" : req->uri);
-//     char *extension = strrchr(filename, '.') + 1;
-//     if (extension)
-//     {
-//         if (strcmp(extension, "html") == 0)
-//         {
-//             httpd_resp_set_type(req, "text/html");
-//         }
-//         else if (strcmp(extension, "css") == 0)
-//         {
-//             httpd_resp_set_type(req, "text/css");
-//         }
-//         else if (strcmp(extension, "js") == 0)
-//         {
-//             httpd_resp_set_type(req, "application/javascript");
-//         }
-//         else if (strcmp(extension, "svg") == 0)
-//         {
-//             httpd_resp_set_type(req, "image/svg+xml");
-//         }
-//         else if (strcmp(extension, "ico") == 0)
-//         {
-//             httpd_resp_set_type(req, "image/x-icon");
-//         }
-//     }
-//     FILE *f = fopen(filename, "r");
-//     if (f == NULL)
-//     {
-//         return ESP_FAIL;
-//     }
-//     char buffer[100] = {0};
-//     while (!feof(f))
-//     {
-//         size_t len = fread(buffer, 1, 100, f);
-//         httpd_resp_send_chunk(req, buffer, len);
-//     }
-//     fclose(f);
-//     httpd_resp_send_chunk(req, NULL, 0);
-//     return ESP_OK;
-// }
 
 /**
  * @brief Request handler for the ['/api/connect'] endpoint.
@@ -228,9 +203,14 @@ httpd_handle_t start_webserver(void)
                                                .handler = index_get_handler,
                                                .user_ctx = NULL});
         httpd_register_uri_handler(server, &(httpd_uri_t){
-                                               .uri = "/portal_*",
+                                               .uri = "/style.css",
                                                .method = HTTP_GET,
-                                               .handler = file_get_handler,
+                                               .handler = style_css_get_handler,
+                                               .user_ctx = NULL});
+        httpd_register_uri_handler(server, &(httpd_uri_t){
+                                               .uri = "/script.js",
+                                               .method = HTTP_GET,
+                                               .handler = script_js_get_handler,
                                                .user_ctx = NULL});
         httpd_register_uri_handler(server, &(httpd_uri_t){
                                                .uri = "/*",
