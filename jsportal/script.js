@@ -25,7 +25,7 @@ function pollConnectionStatus() {
         .then(response => response.json())
         .then(data => {
             if(data.status === 3) {
-                window.location.href = "/portal_connected.html"
+                // connected
             } else if(data.status === 4) {
                 modal.close();
                 modal.open("#failed-window");
@@ -76,7 +76,7 @@ function refresh() {
         return;
     }
     scanning = true;
-    apsList.innerHTML = "<div style='text-align:center;padding-top:50px'><img class='spinner' src='/portal_sync.svg' /></div>";
+    apsList.innerHTML = "<div style='text-align:center;padding-top:50px'><img class='spinner' src='/sync.svg' /></div>";
     fetch("/api/scan")
         .then(response => response.json())
         .then(data => {
@@ -87,8 +87,8 @@ function refresh() {
                 let rssiLevel = Math.round(((ap.rssi + 100) / 70) * 4)
 
                 element.className = "ap";
-                auth = ap.auth > 0 ? "<img class='ap-lock' src='/portal_lock.svg'>" : "";
-                element.innerHTML = `<span class="ap-ssid">${ap.ssid}</span>${auth}<img class="ap-signal" src="/portal_sig_${rssiLevel}.svg" />`;
+                auth = ap.auth > 0 ? "<img class='ap-lock' src='/lock.svg'>" : "";
+                element.innerHTML = `<span class="ap-ssid">${ap.ssid}</span>${auth}<img class="ap-signal" src="/sig_${rssiLevel}.svg" />`;
                 element.addEventListener('click', getPassword(ap))
                 apsList.appendChild(element);
             })

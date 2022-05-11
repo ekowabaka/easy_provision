@@ -4,15 +4,16 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta charset="UTF-8">
     <title>Connect</title>
-    <script type="text/javascript" src="/portal_script.js"></script>
+    <!--<script type="text/javascript" src="/script.js"></script>-->
+    <script src="/script.js"></script>
     <script type="text/javascript">
     function init() {
         document.getElementById("refresh-button").addEventListener("click", refresh);
-        
         document.getElementById("password-window").addEventListener("shown", showPasswordWindow);
         document.getElementById("failed-window").addEventListener("shown", showPasswordWindow);
 
         window.addEventListener("resize", resize);
+
         apsList = document.getElementById("aps-list");
         head = document.getElementById("head");
         foot = document.getElementById("foot");
@@ -21,17 +22,15 @@
     }
     window.addEventListener("load", init);        
     </script>
-    <link rel="stylesheet" type="text/css" href="/portal_style.css">
+    <link rel="stylesheet" type="text/css" href="/style.css">
 </head>
 <body>
     <header id="head"><h1>Select a Wifi Network</h1></header>
-    <div id="aps-list">
-
-    </div>
+    <div id="aps-list"></div>
     <footer id="foot">
         <div id="refresh-button">
-            <img src="/portal_sync.svg" id="refresh-icon" />
-            <span id="refresh-label">Refresh wifi list</span>
+            <img src="/sync.svg" id="refresh-icon" />
+            <span id="refresh-label">Refresh Wifi List</span>
         </div>    
     </footer>
     <div class="modal" id="password-window">
@@ -53,7 +52,7 @@
     <div class="modal" id="connecting-window">
         <div class="wrapper" style="text-align: center;">
             <span class="message">Connecting to <span class="network-name" style="font-weight: bold;">Network</span>.</span>
-            <div><img src="/portal_sync.svg" class="spinner" id="connecting-icon" /></div>
+            <div><img src="/sync.svg" class="spinner" id="connecting-icon" /></div>
         </div>
     </div>
 </body>

@@ -226,7 +226,7 @@ static void captdnsRecv(struct sockaddr_in *premote_addr, char *pusrdata, unsign
 		DnsQuestionFooter *qf = (DnsQuestionFooter *)p;
 		p += sizeof(DnsQuestionFooter);
 
-		ESP_LOGI(TAG, "DNS: Q (type 0x%X class 0x%X) for %s", my_ntohs(&qf->type), my_ntohs(&qf->class), buff);
+		//ESP_LOGI(TAG, "DNS: Q (type 0x%X class 0x%X) for %s", my_ntohs(&qf->type), my_ntohs(&qf->class), buff);
 
 		if (my_ntohs(&qf->type) == QTYPE_A)
 		{

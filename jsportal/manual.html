@@ -4,7 +4,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta charset="UTF-8">
     <title>Connect</title>
-    <script type="text/javascript" src="/portal_script.js"></script>
+    <script type="text/javascript" src="/script.js"></script>
     <script type="text/javascript">
     function init() {
         passwordInput = document.getElementById("password");
@@ -16,19 +16,19 @@
     }
     window.addEventListener("load", init);        
     </script>
-    <link rel="stylesheet" type="text/css" href="/portal_style.css">
+    <link rel="stylesheet" type="text/css" href="/style.css">
 </head>
 <body>
     <header id="head"><h1>Manually connect to a WiFi Network</h1></header>
     <div class="wrapper">
         <input type="text" name="ssid" placeholder="SSID" id="ssid" />
-        <input type="password" name="password" placeholder="password" id="password" />
+        <input type="password" name="password" placeholder="Password" id="password" />
         <a class="button" id="connect-button"> Connect </a>
     </div>
     <div class="modal" id="connecting-window">
         <div class="wrapper" style="text-align: center;">
             <span class="message">Connecting to <span class="network-name" style="font-weight: bold;">Network</span>.</span>
-            <div><img src="/portal_sync.svg" class="spinner" id="connecting-icon" /></div>
+            <div><img src="/sync.svg" class="spinner" id="connecting-icon" /></div>
         </div>
     </div>    
     <div class="modal" id="failed-window">

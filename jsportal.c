@@ -17,10 +17,18 @@ static const char *TAG = "JSPORTAL";
 extern const uint8_t index_html_start[] asm("_binary_index_html_start");
 extern const uint8_t index_html_end[] asm("_binary_index_html_end");
 extern const uint8_t style_css_start[] asm("_binary_style_css_start");
-extern const uint8_t style_css_end[] asm("_binary_style_css_end");
 extern const uint8_t script_js_start[] asm("_binary_script_js_start");
-extern const uint8_t script_js_end[] asm("_binary_script_js_end");
+extern const uint8_t select_html_start[] asm("_binary_select_html_start");
+extern const uint8_t manual_html_start[] asm("_binary_manual_html_start");
 
+extern const uint8_t sig_0_svg_start[] asm("_binary_sig_0_svg_start");
+extern const uint8_t sig_1_svg_start[] asm("_binary_sig_1_svg_start");
+extern const uint8_t sig_2_svg_start[] asm("_binary_sig_2_svg_start");
+extern const uint8_t sig_3_svg_start[] asm("_binary_sig_3_svg_start");
+extern const uint8_t sig_4_svg_start[] asm("_binary_sig_4_svg_start");
+
+extern const uint8_t sync_svg_start[] asm("_binary_sync_svg_start");
+extern const uint8_t lock_svg_start[] asm("_binary_lock_svg_start");
 
 /**
  * @brief Web server handle
@@ -30,34 +38,87 @@ static httpd_handle_t server = NULL;
 esp_err_t index_get_handler(httpd_req_t *req)
 {
     char buffer[1024];
-    sprintf(buffer, (const char *) index_html_start, "LED Matrix");
+    sprintf(buffer, (const char *)index_html_start, "LED Matrix");
     httpd_resp_send(req, buffer, strlen(buffer));
+    return ESP_OK;
+}
+
+esp_err_t select_get_handler(httpd_req_t *req)
+{
+    httpd_resp_send(req, (const char *)select_html_start, strlen((const char *)select_html_start));
+    return ESP_OK;
+}
+
+esp_err_t manual_get_handler(httpd_req_t *req)
+{
+    httpd_resp_send(req, (const char *)manual_html_start, strlen((const char *)manual_html_start));
+    return ESP_OK;
+}
+
+esp_err_t svg_get_handler(httpd_req_t *req)
+{
+    httpd_resp_set_type(req, "image/svg+xml");
+    ESP_LOGI(TAG, "Sending svg file: %s", req->uri);
+    if (strcmp(req->uri, "/sig_0.svg") == 0)
+    {
+        httpd_resp_send(req, (const char *)sig_0_svg_start, strlen((const char *)sig_0_svg_start));
+    }
+    else if (strcmp(req->uri, "/sig_1.svg") == 0)
+    {
+        httpd_resp_send(req, (const char *)sig_1_svg_start, strlen((const char *)sig_1_svg_start));
+    }
+    else if (strcmp(req->uri, "/sig_2.svg") == 0)
+    {
+        httpd_resp_send(req, (const char *)sig_2_svg_start, strlen((const char *)sig_2_svg_start));
+    }
+    else if (strcmp(req->uri, "/sig_3.svg") == 0)
+    {
+        httpd_resp_send(req, (const char *)sig_3_svg_start, strlen((const char *)sig_3_svg_start));
+    }
+    else if (strcmp(req->uri, "/sig_4.svg") == 0)
+    {
+        httpd_resp_send(req, (const char *)sig_4_svg_start, strlen((const char *)sig_4_svg_start));
+    }
+    else if (strcmp(req->uri, "/sync.svg") == 0)
+    {
+        httpd_resp_send(req, (const char *)sync_svg_start, strlen((const char *)sync_svg_start));
+    }
+    else if (strcmp(req->uri, "/lock.svg") == 0)
+    {
+        httpd_resp_send(req, (const char *)lock_svg_start, strlen((const char *)lock_svg_start));
+    }
     return ESP_OK;
 }
 
 esp_err_t style_css_get_handler(httpd_req_t *req)
 {
     httpd_resp_set_type(req, "text/css");
-    httpd_resp_send(req, (const char *) style_css_start, style_css_end - style_css_start);
+    httpd_resp_send(req, (const char *)style_css_start, strlen((const char *)style_css_start));
     return ESP_OK;
 }
 
 esp_err_t script_js_get_handler(httpd_req_t *req)
 {
-    httpd_resp_set_type(req, "text/css");
-    httpd_resp_send(req, (const char *) script_js_start, script_js_end - script_js_start);
+    httpd_resp_set_type(req, "text/javascript");
+    httpd_resp_send(req, (const char *)script_js_start, strlen((const char *)script_js_start));
     return ESP_OK;
 }
 
 esp_err_t api_status_get_handler(httpd_req_t *req)
 {
     char buffer[128];
+    int connection_status = wifi_get_connection_status();
 
     httpd_resp_set_type(req, "application/json");
-    sprintf(buffer, "{\"status\": %d}", wifi_get_connection_status());
+    sprintf(buffer, "{\"status\": %d}", connection_status);
     httpd_resp_send(req, buffer, strlen(buffer));
-
     ESP_LOGI(TAG, "Sending status: %s", buffer);
+
+    if (connection_status == CONNECTION_STATUS_CONNECTED)
+    {
+        vTaskDelay(2000 / portTICK_PERIOD_MS);
+        stop_provisioning();
+    }
 
     return ESP_OK;
 }
@@ -70,13 +131,13 @@ esp_err_t api_status_get_handler(httpd_req_t *req)
  */
 esp_err_t api_scan_get_handler(httpd_req_t *req)
 {
-    char buffer[128];
+    char buffer[258];
     wifi_ap_record_t ap_info[DEFAULT_SCAN_LIST_SIZE];
     int ap_count = wifi_scan(ap_info);
 
     httpd_resp_set_type(req, "application/json");
     httpd_resp_send_chunk(req, "[", 1);
-    for (int i = 0; (i < DEFAULT_SCAN_LIST_SIZE) && (i < ap_count); i++)
+    for (int i = 0; i < ap_count; i++)
     {
         sprintf(
             buffer, "{\"ssid\":\"%s\",\"rssi\":%d, \"auth\": %d}",
@@ -156,7 +217,6 @@ esp_err_t api_connect_post_handler(httpd_req_t *req)
     {
         httpd_resp_set_status(req, "200 OK");
         httpd_resp_send(req, success, strlen(success));
-        stop_provisioning();
     }
     else
     {
@@ -212,6 +272,32 @@ httpd_handle_t start_webserver(void)
                                                .method = HTTP_GET,
                                                .handler = script_js_get_handler,
                                                .user_ctx = NULL});
+        httpd_register_uri_handler(server, &(httpd_uri_t){
+                                               .uri = "/select",
+                                               .method = HTTP_GET,
+                                               .handler = select_get_handler,
+                                               .user_ctx = NULL});
+        httpd_register_uri_handler(server, &(httpd_uri_t){
+                                               .uri = "/manual",
+                                               .method = HTTP_GET,
+                                               .handler = manual_get_handler,
+                                               .user_ctx = NULL});
+        httpd_register_uri_handler(server, &(httpd_uri_t){
+                                               .uri = "/lock.svg",
+                                               .method = HTTP_GET,
+                                               .handler = svg_get_handler,
+                                               .user_ctx = NULL});
+        httpd_register_uri_handler(server, &(httpd_uri_t){
+                                               .uri = "/sync.svg",
+                                               .method = HTTP_GET,
+                                               .handler = svg_get_handler,
+                                               .user_ctx = NULL});
+        httpd_register_uri_handler(server, &(httpd_uri_t){
+                                               .uri = "/sig*",
+                                               .method = HTTP_GET,
+                                               .handler = svg_get_handler,
+                                               .user_ctx = NULL});
+
         httpd_register_uri_handler(server, &(httpd_uri_t){
                                                .uri = "/*",
                                                .method = HTTP_GET,
