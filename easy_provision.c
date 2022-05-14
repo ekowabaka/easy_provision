@@ -29,6 +29,10 @@ static int state = STATE_CONNECTING;
 static wifi_config_t wifi_config;
 static easy_provision_config_t *easy_provision_config;
 
+ESP_EVENT_DEFINE_BASE(EASY_PROVISION);
+esp_event_loop_handle_t easy_provision_event_loop = NULL;
+
+
 /**
  * @brief Receive and handle events on the statuses of the different wifi connections. Because this relies on the ESP's
  *        internal wifi event loop, some events may originate from other tasks.
@@ -63,10 +67,6 @@ static void wifi_event_handler(void *arg, esp_event_base_t event_base, int32_t e
         {
             state = STATE_CONNECTED;
         }
-        // else if (state == STATE_SETTING_UP) {
-        //     state = STATE_CONNECTED;
-        //     stop_provisioning();
-        // }
     }
     else if (event_id == WIFI_EVENT_STA_DISCONNECTED)
     {
@@ -126,21 +126,20 @@ int wifi_scan(wifi_ap_record_t *ap_info)
  * memory, it starts the portal.
  *
  */
-void init_wifi(easy_provision_config_t *config)
+void init_wifi()
 {
     tcpip_adapter_init();
-    ESP_ERROR_CHECK(esp_event_loop_create_default());
 
     wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
-    ESP_ERROR_CHECK(esp_wifi_init(&cfg));
-    ESP_ERROR_CHECK(esp_event_handler_register(WIFI_EVENT, ESP_EVENT_ANY_ID, &wifi_event_handler, config));
+    esp_wifi_init(&cfg);
+    esp_event_handler_register(WIFI_EVENT, ESP_EVENT_ANY_ID, &wifi_event_handler, easy_provision_config);
 
     // Read persisted credentials and attempt to connect
     ESP_ERROR_CHECK(esp_wifi_get_config(ESP_IF_WIFI_STA, &wifi_config));
     if (strlen((const char *)wifi_config.sta.ssid) == 0)
     {
         ESP_LOGI(TAG, "No stored credentials found");
-        start_provisioning(config);
+        start_provisioning(easy_provision_config);
     }
     else
     {
@@ -151,20 +150,20 @@ void init_wifi(easy_provision_config_t *config)
     }
 }
 
-void start_provisioning(easy_provision_config_t *config)
+void start_provisioning()
 {
     esp_wifi_stop();
 
     state = STATE_SETTING_UP;
-    wifi_config.ap.ssid_len = strlen(config->ssid);
+    wifi_config.ap.ssid_len = strlen(easy_provision_config->ssid);
     wifi_config.ap.max_connection = 2;
     wifi_config.ap.authmode = WIFI_AUTH_OPEN;
-    strncpy((char *)&wifi_config.ap.password, config->password, strlen(config->password));
-    strncpy((char *)&wifi_config.sta.ssid, config->ssid, strlen(config->ssid));
+    strncpy((char *)&wifi_config.ap.password, easy_provision_config->password, strlen(easy_provision_config->password));
+    strncpy((char *)&wifi_config.sta.ssid, easy_provision_config->ssid, strlen(easy_provision_config->ssid));
 
-    ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_APSTA));
-    ESP_ERROR_CHECK(esp_wifi_set_config(ESP_IF_WIFI_AP, &wifi_config));
-    ESP_ERROR_CHECK(esp_wifi_start());
+    esp_wifi_set_mode(WIFI_MODE_APSTA);
+    esp_wifi_set_config(ESP_IF_WIFI_AP, &wifi_config);
+    esp_wifi_start();
 
     captdnsInit();
     start_portal();
@@ -190,6 +189,22 @@ void stop_provisioning()
     endCaptDnsTask();
 }
 
+esp_err_t easy_provision_init(easy_provision_config_t *config)
+{
+    esp_event_loop_args_t event_loop_args = {
+        .queue_size = 10,
+    };
+    esp_event_loop_create_default();
+    // if(esp_event_loop_create(&event_loop_args, &easy_provision_event_loop) != ESP_OK)
+    // {
+    //     ESP_LOGE(TAG, "Failed to create event loop");
+    //     return ESP_FAIL;
+    // }    
+    easy_provision_config = (easy_provision_config_t *) malloc(sizeof(easy_provision_config_t));
+    memcpy(easy_provision_config, config, sizeof(easy_provision_config_t));
+    return ESP_OK;
+}
+
 /**
  * @brief Start the easy provision system.
  *
@@ -197,14 +212,16 @@ void stop_provisioning()
  *
  * @return esp_err_t
  */
-esp_err_t easy_provision_start(easy_provision_config_t *config)
+esp_err_t easy_provision_start()
 {
-    ESP_LOGI(TAG, "Starting Easy Provision ...");
+    if(easy_provision_config == NULL)
+    {
+        ESP_LOGE(TAG, "Easy provision has not been initialized.");
+        return ESP_FAIL;
+    }
+    esp_event_post(EASY_PROVISION, EASY_PROVISION_EVENT_STARTED, NULL, 0, 0);
     nvs_flash_init();
-    easy_provision_config = (easy_provision_config_t *)malloc(sizeof(easy_provision_config_t));
-    memcpy(easy_provision_config, config, sizeof(easy_provision_config_t));
-    init_wifi(config);
-
+    init_wifi();
     return ESP_OK;
 }
 
