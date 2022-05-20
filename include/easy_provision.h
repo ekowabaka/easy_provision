@@ -18,7 +18,6 @@ ESP_EVENT_DECLARE_BASE(EASY_PROVISION);
  * @brief Easy Provisioning
  */
 typedef struct {
-    char path[32];
     char ssid[32];
     char password[64];
     char app_name[32];
