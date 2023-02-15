@@ -22,7 +22,10 @@ the internal webserver.
 #include "freertos/queue.h"
 #include "lwip/sockets.h"
 #include "lwip/err.h"
-#include "tcpip_adapter.h"
+// #include "tcpip_adapter.h" Keep this here in case we need it for the ESP 8266
+#include "esp_netif.h"
+#include "esp_wifi_types.h"
+#include "esp_wifi_default.h"
 #include "string.h"
 #include "esp_log.h"
 
@@ -244,8 +247,12 @@ static void captdnsRecv(struct sockaddr_in *premote_addr, char *pusrdata, unsign
 			setn16(&rf->rdlength, 4); //IPv4 addr is 4 bytes;
 									  //Grab the current IP of the softap interface
 
-			tcpip_adapter_ip_info_t info;
-			tcpip_adapter_get_ip_info(TCPIP_ADAPTER_IF_AP, &info);
+			//tcpip_adapter_ip_info_t info;
+			//tcpip_adapter_get_ip_info(TCPIP_ADAPTER_IF_AP, &info);
+			esp_netif_t *ap_netif = esp_netif_create_default_wifi_ap();
+			esp_netif_ip_info_t info;
+			esp_netif_get_ip_info(ap_netif, &info);
+
 			*rend++ = ip4_addr1(&info.ip);
 			*rend++ = ip4_addr2(&info.ip);
 			*rend++ = ip4_addr3(&info.ip);
@@ -313,7 +320,8 @@ static void captdnsTask(void *pvParameters)
 		if (sockFd == -1)
 		{
 			ESP_LOGE(TAG, "captdns_task failed to create sock!");
-			vTaskDelay(1000 / portTICK_RATE_MS);
+			vTaskDelay(1000 / portTICK_PERIOD_MS);
+			//vTaskDelay(1000 / portTICK_RATE_MS);
 		}
 	} while (sockFd == -1);
 
@@ -323,7 +331,8 @@ static void captdnsTask(void *pvParameters)
 		if (ret != 0)
 		{
 			ESP_LOGE(TAG, "captdns_task failed to bind sock!");
-			vTaskDelay(1000 / portTICK_RATE_MS);
+			vTaskDelay(1000 / portTICK_PERIOD_MS);
+			//vTaskDelay(1000 / portTICK_RATE_MS);
 		}
 	} while (ret != 0);
 

@@ -8,7 +8,7 @@
 #
 
 COMPONENT_OBJS := easy_provision.o captdns.o
-COMPONENT_DEPENDS := log tcpip_adapter esp_http_server esp_event nvs_flash
+COMPONENT_DEPENDS := log esp_wifi esp_netif esp_http_server esp_event nvs_flash
 COMPONENT_PRIV_INCLUDEDIRS := private
 
 $(call compile_only_if,$(CONFIG_EASY_PROVISION_HTPORTAL),htportal.o)

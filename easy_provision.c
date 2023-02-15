@@ -6,6 +6,7 @@
 #include "esp_event.h"
 #include "esp_log.h"
 #include "esp_spiffs.h"
+#include "esp_mac.h"
 #include "nvs_flash.h"
 
 #include "lwip/err.h"
@@ -49,7 +50,7 @@ static void wifi_event_handler(void *arg, esp_event_base_t event_base, int32_t e
     if (event_id == WIFI_EVENT_AP_STACONNECTED)
     {
         // When a station connects to the access point.
-        wifi_event_ap_staconnected_t *event = (wifi_event_ap_staconnected_t *)event_data;
+        wifi_event_ap_staconnected_t *event = (wifi_event_ap_staconnected_t *) event_data;
         ESP_LOGI(TAG, "station " MACSTR " join, AID=%d", MAC2STR(event->mac), event->aid);
     }
     else if (event_id == WIFI_EVENT_AP_STADISCONNECTED)
@@ -128,7 +129,8 @@ int wifi_scan(wifi_ap_record_t *ap_info)
  */
 void init_wifi()
 {
-    tcpip_adapter_init();
+    //tcpip_adapter_init();
+    esp_netif_init();
 
     wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
     esp_wifi_init(&cfg);
